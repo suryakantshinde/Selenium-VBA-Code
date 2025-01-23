@@ -1,6 +1,18 @@
 'driver.FindElementById("Button").waitText "Hello",20000
 'driver.FindElementById("mytext").waitEnabled False, 20000
 
+'================================================================================================================
+'Perfect code
+'Below code will wait untill "Visa Resolve Online - India" is available then it will click on it
+'================================================================================================================
+On Error Resume Next
+Do While IsError(driver.FindElementByLinkText("Visa Resolve Online - India")) = True
+Loop
+driver.FindElementByLinkText("Visa Resolve Online - India", 10000).Click
+'================================================================================================================
+'================================================================================================================
+
+
 Sub wait()
 '----------------------------------------------------------------------------------------------------------------------
 'Wait for Download Button to be visible
