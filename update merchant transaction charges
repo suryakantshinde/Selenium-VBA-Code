@@ -1,0 +1,195 @@
+Private Keys As New Selenium.Keys
+Private Assert As New Selenium.Assert
+Sub Omnipay_UpdateMerchantTransactionCharges_Selenium_Start()
+On Error Resume Next
+'========================================================='=========================================================
+Dim driver As New Selenium.ChromeDriver
+'========================================================='=========================================================
+Dim count As Long
+Dim fs As String
+Dim button As WebElement
+Dim i, lr As Long
+'========================================================='=========================================================
+Sheets("SignOn").Activate
+        Set driver = CreateObject("Selenium.ChromeDriver")
+'========================================================='=========================================================
+'New URL Login
+ driver.Get "https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP"
+'Enter User Name
+        driver.FindElementByXPath("//*[@id='username']").Clear
+        driver.FindElementByXPath("//*[@id='username']").SendKeys Range("B8")
+'Enter Password
+        driver.FindElementByXPath("//*[@id='password']").Clear
+        driver.FindElementByXPath("//*[@id='password']").SendKeys Range("B12")
+'Click on Login Button
+          driver.FindElementByXPath("//*[@id='signOnButton']").Click
+          driver.Wait 2000
+'========================================================='=========================================================
+'========================================================='=========================================================
+'Max Windows
+        driver.Window.Maximize
+'========================================================='=========================================================
+MsgBox "Please do PingID multi-factor authentication then click on OK button to continue running automation", vbInformation, "PingID-Authentication"
+    driver.Wait 5000
+'-----------------------------------------------------------'-----------------------------------------------------------
+'Click Select Institution | Click Select Institution | Click Select Institution | Click Select Institution |
+'-----------------------------------------------------------'-----------------------------------------------------------
+driver.FindElementByXPath("//*[@id='selectinst']").Click
+driver.Wait 500
+If Sheets("SignOn").Range("J8").Text = "00000029 - Merchant Solutions" Then
+    'Merchant Solutions
+    driver.FindElementByLinkText("00000029 - Merchant Solutions").Click
+    driver.Wait 1000
+Else
+    'Robinsons Bank
+    driver.FindElementByLinkText("00000066 - Robinsons Bank").Click
+    driver.Wait 1000
+End If
+'-----------------------------------------------------------'-----------------------------------------------------------
+'========================================================='=========================================================
+'check and click various privilege options
+    driver.FindElementByXPath("/html/body/div[1]/div[3]/div[3]/a[2]").Click
+'========================================================='=========================================================
+    'View Card Number
+        ClickPrivilegeIfAvailable driver, "field-view-card-number"
+    'Download Card Number
+        ClickPrivilegeIfAvailable driver, "field-download-card-number"
+    'View Bank Account
+        ClickPrivilegeIfAvailable driver, "field-view-bank-account"
+    'Update Bank Account
+        ClickPrivilegeIfAvailable driver, "field-update-bank-account"
+    'View Merchant PII Data
+        ClickPrivilegeIfAvailable driver, "field-view-merchant-pii"
+    'Update Merchant PII Data
+        ClickPrivilegeIfAvailable driver, "field-update-merchant-pii"
+    'View Sensitive Document/Report - PCI
+        ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pci"
+    'View Sensitive Document/Report - PII
+        ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pii"
+'========================================================='=========================================================
+'Click button Update Privileges
+    driver.FindElementByXPath("/html/body/div[2]/div[1]/div[3]/span/span[1]/span/button", 10000).Click
+'========================================================='=========================================================
+driver.Wait 3000
+'===================='===================='===================='===================='====================
+Sheets("RawData").Activate
+lr = ThisWorkbook.ActiveSheet.Cells(Rows.count, 1).End(xlUp).row
+For i = 2 To lr
+'===================='===================='===================='===================='====================
+     
+'Click  on Select Merchant Number
+       driver.FindElementByXPath("//*[@id='merchbutton-button']").Click
+       
+       driver.FindElementByXPath("//*[@id='id_40A']").Clear
+       driver.FindElementByXPath("//*[@id='id_40A']").SendKeys Range("A" & i)
+
+'Click on Change Button
+       driver.FindElementByXPath("//*[@id='changeMerchBtn']").Click
+       driver.Wait 1000
+
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Merchant Administration").Click
+    driver.Wait 200
+    
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Merchant Maintenance").Click
+    driver.Wait 300
+
+'selectMerchant Application List link    Maintain Mantenanace Detail
+    driver.FindElementByCss("a[href*='MERCH_MAINTAIN_DETAILS']").Click
+    driver.Wait 1000
+
+'===================== Click on Accounts Tab===============================================================
+driver.Timeouts.ImplicitWait = 3000
+driver.FindElementByLinkText("Transaction Charges").Click
+driver.Wait 9000
+
+'Charge Type - Select "Commission" from drop down
+driver.FindElementByXPath("/html/body/div[11]/div[2]/form/div/div[4]/div[2]/fieldset/div/div[1]/p[1]/button").Click
+driver.FindElementByXPath("/html/body/div[12]/ul/li[2]/label/input").Click
+
+
+'Charge Transaction Type: - Select "Purchase" from drop down
+driver.FindElementByXPath("/html/body/div[11]/div[2]/form/div/div[4]/div[2]/fieldset/div/div[2]/p[2]/button").Click
+driver.FindElementByXPath("/html/body/div[14]/ul/li[2]/label/input").Click
+
+'Check all
+driver.FindElementByXPath("/html/body/div[11]/div[2]/form/div/div[7]/div[2]/div[3]/table/thead/tr/th[2]/div/span/input").Click
+
+'Click on "Revise Pricing On Sel. Charges" button
+driver.FindElementByXPath("//*[@id='btnReviseMultiSelect']").Click
+
+'Charge %: - Check the check box
+driver.FindElementByXPath("//*[@id='IDC32d3b']").Click
+
+'enter value
+driver.FindElementByXPath("//*[@id='IDM32d3b']").SendKeys Range("E" & i)
+
+
+'click on update button
+driver.FindElementByXPath("//button[@class='add']").Click
+
+driver.Wait 100
+'========================================================================================================
+'========================================================================================================
+'Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes
+'========================================================================================================
+                      Sheets("RawData").Activate
+                     'Update  Merchant Notes
+                      driver.FindElementByLinkText("Customer Service").Click
+                      driver.Wait 100
+                      driver.FindElementByLinkText("Merchant Notes").Click
+                      driver.Wait 100
+'-----------------------------------------------------------------------------------------------------------------------------------
+                       'Click on Add Note
+                      driver.FindElementByXPath("//*[@id='add']").Click
+                      driver.Wait 1000
+'-----------------------------------------------------------------------------------------------------------------------------------
+                   'Change Category -- name - 42j6
+                   Dim Category As Selenium.SelectElement
+                   Set Category = driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[6]/td[2]/select").AsSelect
+                   Category.SelectByText Range("F" & i).Value
+                   driver.Wait 500
+'-----------------------------------------------------------------------------------------------------------------------------------
+                      'Add Note Text
+                      driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[7]/td[2]/textarea").SendKeys Range("G" & i)
+                      driver.Wait 1000
+ '-----------------------------------------------------------------------------------------------------------------------------------
+                      'Click on Add Button
+                      driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[2]/fieldset[2]/table/tbody/tr[8]/td[2]/input[6]").Click
+                      driver.Wait 100
+'-----------------------------------------------------------------------------------------------------------------------------------
+'========================================================================================================
+Range("H" & i).Value = "Record updated successfully"
+'-----------------------------------------------------------'-----------------------------------------------------------
+'========================================================='=========================================================
+continue:
+            ActiveWorkbook.Save
+'========================================================='=========================================================
+Next i
+'========================================================='=========================================================
+done:
+   MsgBox "Completed Successfully", vbInformation
+    Exit Sub
+'========================================================='=========================================================
+Run_Next_Record:
+    Range("H" & i).Value = "Error - Record not updated"
+    driver.Wait 2000
+'========================================================='=========================================================
+    GoTo continue 'return to the code to continue running next record
+'========================================================='=========================================================
+        ActiveWorkbook.Save
+'========================================================='=========================================================
+        MsgBox "Completed Successfully", vbInformation
+driver.Quit
+'========================================================='=========================================================
+End Sub
+
+
+Private Sub ClickPrivilegeIfAvailable(driver As Selenium.EdgeDriver, id As String)
+    If driver.FindElementById(id).Value > 0 Then
+        driver.FindElementById(id).Click
+    End If
+End Sub
+
+
