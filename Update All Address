@@ -1,1 +1,839 @@
+Private Keys As New Selenium.Keys
+Private Assert As New Selenium.Assert
+Sub Omnipay_BankAccountDetailsUpdate_Selenium_Start()
+On Error Resume Next
+'========================================================='=========================================================
+Dim driver As New Selenium.ChromeDriver
+'========================================================='=========================================================
+Dim count As Long
+Dim fs As String
+Dim button As WebElement
+Dim i, lr As Long
+'========================================================='=========================================================
+Sheets("SignOn").Activate
+        Set driver = CreateObject("Selenium.ChromeDriver")
+'========================================================='=========================================================
+'New URL Login
+ driver.Get "https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP"
+'Enter User Name
+        driver.FindElementByXPath("//*[@id='username']").Clear
+        driver.FindElementByXPath("//*[@id='username']").SendKeys Range("B8")
+'Enter Password
+        driver.FindElementByXPath("//*[@id='password']").Clear
+        driver.FindElementByXPath("//*[@id='password']").SendKeys Range("B12")
+'Click on Login Button
+          driver.FindElementByXPath("//*[@id='signOnButton']").Click
+          driver.Wait 2000
+'========================================================='=========================================================
+'========================================================='=========================================================
+'Max Windows
+        driver.Window.Maximize
+'========================================================='=========================================================
+MsgBox "Please do PingID multi-factor authentication then click on OK button to continue running automation", vbInformation, "PingID-Authentication"
+    driver.Wait 5000
+'-----------------------------------------------------------'-----------------------------------------------------------
+'Click Select Institution | Click Select Institution | Click Select Institution | Click Select Institution |
+'-----------------------------------------------------------'-----------------------------------------------------------
+driver.FindElementByXPath("//*[@id='selectinst']").Click
+driver.Wait 500
+If Sheets("SignOn").Range("J8").Text = "00000029 - Merchant Solutions" Then
+    'Merchant Solutions
+    driver.FindElementByLinkText("00000029 - Merchant Solutions").Click
+    driver.Wait 1000
+Else
+    'Robinsons Bank
+    driver.FindElementByLinkText("00000066 - Robinsons Bank").Click
+    driver.Wait 1000
+End If
+'-----------------------------------------------------------'-----------------------------------------------------------
+'========================================================='=========================================================
+'check and click various privilege options
+    driver.FindElementByXPath("/html/body/div[1]/div[3]/div[3]/a[2]").Click
+'========================================================='=========================================================
+    'View Card Number
+        ClickPrivilegeIfAvailable driver, "field-view-card-number"
+    'Download Card Number
+        ClickPrivilegeIfAvailable driver, "field-download-card-number"
+    'View Bank Account
+        ClickPrivilegeIfAvailable driver, "field-view-bank-account"
+    'Update Bank Account
+        ClickPrivilegeIfAvailable driver, "field-update-bank-account"
+    'View Merchant PII Data
+        ClickPrivilegeIfAvailable driver, "field-view-merchant-pii"
+    'Update Merchant PII Data
+        ClickPrivilegeIfAvailable driver, "field-update-merchant-pii"
+    'View Sensitive Document/Report - PCI
+        ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pci"
+    'View Sensitive Document/Report - PII
+        ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pii"
+'========================================================='=========================================================
+'Click button Update Privileges
+    driver.FindElementByXPath("/html/body/div[2]/div[1]/div[3]/span/span[1]/span/button", 10000).Click
+'========================================================='=========================================================
+driver.Wait 3000
+'===================='===================='===================='===================='====================
+Sheets("RawData").Activate
+lr = ThisWorkbook.ActiveSheet.Cells(Rows.count, 1).End(xlUp).row
+For i = 2 To lr
+'===================='===================='===================='===================='====================
+     
+'Click  on Select Merchant Number
+       driver.FindElementByXPath("//*[@id='merchbutton-button']").Click
+       
+       driver.FindElementByXPath("//*[@id='id_40A']").Clear
+       driver.FindElementByXPath("//*[@id='id_40A']").SendKeys Range("A" & i)
+
+'Click on Change Button
+       driver.FindElementByXPath("//*[@id='changeMerchBtn']").Click
+       driver.Wait 1000
+
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Merchant Administration").Click
+    driver.Wait 200
+    
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Merchant Maintenance").Click
+    driver.Wait 300
+
+'selectMerchant Application List link    Maintain Mantenanace Detail
+    driver.FindElementByCss("a[href*='MERCH_MAINTAIN_DETAILS']").Click
+    driver.Wait 1000
+
+'===================== Click on Accounts Tab===============================================================
+driver.Timeouts.ImplicitWait = 3000
+driver.FindElementByLinkText("Addresses").Click
+driver.Wait 6000
+'=======================================================================================================
+'01
+'===================='===================='===================='===================='====================
+' Addresses Tab ----- >  >  >  >  Dispute Address
+'===================='===================='===================='===================='====================
+If Sheets("SignOn").OLEObjects("CBO_Dispute_Address").Object.Value = True Then
+Sheets("RawData").Activate
+            Dim tbl_1 As WebElement
+            Dim row_1 As WebElement
+            Dim icon_1 As WebElement
+            Dim refftype_1 As WebElement
+            Dim reffvalue_1 As WebElement
+            Dim txtvalue_1 As String
+            row_count = 0
+            Set tbl_1 = driver.FindElementById("listTable")
+            For Each row_1 In tbl_1.FindElementsByTag("tr")
+                    If row_1.FindElementsByTag("td").count > 1 Then
+                        Set icon_1 = row_1.FindElementsByTag("td")(1)
+                        'Set refftype = row.FindElementsByTag("td")(2)
+                        Set reffvalue_1 = row_1.FindElementsByTag("td")(3)
+                        If (Trim(reffvalue_1.Text)) = "Dispute Address" Then
+                            icon_1.Click
+                        ' - Click on Edit Button
+                            driver.FindElementByLinkText("Edit").Click
+                            driver.Wait 1000
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'1
+'===================='===================='===================='===================='====================
+' Dispute Address | Dispute Address | Dispute Address | Dispute Address | Dispute Address | Dispute Address | Dispute Address |
+'===================='===================='===================='===================='====================
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Effective Date: ID - ID23c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("B" & i).Text <> "" Then
+            driver.FindElementById("ID23c").Clear
+            driver.FindElementById("ID23c").SendKeys Range("B" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Contact Name: ID20
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("C" & i).Text <> "" Then
+            driver.FindElementById("ID20").Clear
+            driver.FindElementById("ID20").SendKeys Range("C" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 1:ID9a
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("D" & i).Text <> "" Then
+            driver.FindElementById("ID9a").Clear
+            driver.FindElementById("ID9a").SendKeys Range("D" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 2:ID9b
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("E" & i).Text <> "" Then
+            driver.FindElementById("ID9b").Clear
+            driver.FindElementById("ID9b").SendKeys Range("E" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 3:ID9c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("F" & i).Text <> "" Then
+            driver.FindElementById("ID9c").Clear
+            driver.FindElementById("ID9c").SendKeys Range("F" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 4:ID9d
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("G" & i).Text <> "" Then
+            driver.FindElementById("ID9d").Clear
+            driver.FindElementById("ID9d").SendKeys Range("G" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 5:ID9e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("H" & i).Text <> "" Then
+            driver.FindElementById("ID9e").Clear
+            driver.FindElementById("ID9e").SendKeys Range("H" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Post Code:ID47A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("I" & i).Text <> "" Then
+            driver.FindElementById("ID47A").Clear
+            driver.FindElementById("ID47A").SendKeys Range("I" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''City:ID18aab
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("J" & i).Text <> "" Then
+            driver.FindElementById("ID18aab").Clear
+            driver.FindElementById("ID18aab").SendKeys Range("J" & i)
+            End If
+
+
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Country:ID22.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+                   If Range("L" & i).Text <> "" Then
+                   Dim Country1 As Selenium.SelectElement
+                   Set Country1 = driver.FindElementById("ID22").AsSelect
+                   Country1.SelectByText Range("L" & i).Value
+                   driver.Wait 500
+                   End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''State:ID58A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("M" & i).Text <> "" Then
+            driver.FindElementById("ID58A").Clear
+            driver.FindElementById("ID58A").SendKeys Range("M" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Telephone:ID61B1
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("N" & i).Text <> "" Then
+            driver.FindElementById("ID61B1").Clear
+            driver.FindElementById("ID61B1").SendKeys Range("N" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Fax:ID32D
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("O" & i).Text <> "" Then
+            driver.FindElementById("ID32D").Clear
+            driver.FindElementById("ID32D").SendKeys Range("O" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Email:ID27
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("P" & i).Text <> "" Then
+            driver.FindElementById("ID27").Clear
+            driver.FindElementById("ID27").SendKeys Range("P" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Delivery Method:ID23e.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'            driver.FindElementById("ID23e").Clear
+'            driver.FindElementById("ID23e").SendKeys Range("P" & i)
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'click on update button
+driver.FindElementByXPath("//button[@class='update']").Click
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+driver.Wait 2000
+Exit For
+End If
+driver.Wait 50
+            End If
+                row_count = row_count + 1
+Next
+driver.Wait 2000
+End If
+'=======================================================================================================
+'02
+'===================='===================='===================='===================='====================
+' Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal| Legal|
+'===================='===================='===================='===================='====================
+If Sheets("SignOn").OLEObjects("CBO_Legal_Address").Object.Value = True Then
+Sheets("RawData").Activate
+                        Dim tbl_2 As WebElement
+                        Dim row_2 As WebElement
+                        Dim icon_2 As WebElement
+                        Dim refftype_2 As WebElement
+                        Dim reffvalue_2 As WebElement
+                        Dim txtvalue_2 As String
+                        row_count = 0
+                        Set tbl_2 = driver.FindElementById("listTable")
+                        For Each row_2 In tbl_2.FindElementsByTag("tr")
+                                If row_2.FindElementsByTag("td").count > 1 Then
+                                    Set icon_2 = row_2.FindElementsByTag("td")(1)
+                                    'Set refftype = row.FindElementsByTag("td")(2)
+                                    Set reffvalue_2 = row_2.FindElementsByTag("td")(3)
+                                    If (Trim(reffvalue_2.Text)) = "Legal" Then
+                                        icon_2.Click
+                                    ' - Click on Edit Button
+                                        driver.FindElementByLinkText("Edit").Click
+                                        driver.Wait 1000
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'2
+'Legal
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Effective Date: ID - ID23c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("B" & i).Text <> "" Then
+            driver.FindElementById("ID23c").Clear
+            driver.FindElementById("ID23c").SendKeys Range("B" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Contact Name: ID20
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("C" & i).Text <> "" Then
+            driver.FindElementById("ID20").Clear
+            driver.FindElementById("ID20").SendKeys Range("C" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 1:ID9a
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("D" & i).Text <> "" Then
+            driver.FindElementById("ID9a").Clear
+            driver.FindElementById("ID9a").SendKeys Range("D" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 2:ID9b
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("E" & i).Text <> "" Then
+            driver.FindElementById("ID9b").Clear
+            driver.FindElementById("ID9b").SendKeys Range("E" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 3:ID9c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("F" & i).Text <> "" Then
+            driver.FindElementById("ID9c").Clear
+            driver.FindElementById("ID9c").SendKeys Range("F" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 4:ID9d
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("G" & i).Text <> "" Then
+            driver.FindElementById("ID9d").Clear
+            driver.FindElementById("ID9d").SendKeys Range("G" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 5:ID9e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("H" & i).Text <> "" Then
+            driver.FindElementById("ID9e").Clear
+            driver.FindElementById("ID9e").SendKeys Range("H" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Post Code:ID47A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("I" & i).Text <> "" Then
+            driver.FindElementById("ID47A").Clear
+            driver.FindElementById("ID47A").SendKeys Range("I" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''City:ID18aab
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("J" & i).Text <> "" Then
+            driver.FindElementById("ID18aab").Clear
+            driver.FindElementById("ID18aab").SendKeys Range("J" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Country:ID22.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+                   If Range("L" & i).Text <> "" Then
+                   Dim Country2 As Selenium.SelectElement
+                   Set Country2 = driver.FindElementById("ID22").AsSelect
+                   Country2.SelectByText Range("L" & i).Value
+                   driver.Wait 500
+                   End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''State:ID58A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("M" & i).Text <> "" Then
+            driver.FindElementById("ID58A").Clear
+            driver.FindElementById("ID58A").SendKeys Range("M" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Telephone:ID61B1
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("N" & i).Text <> "" Then
+            driver.FindElementById("ID61B1").Clear
+            driver.FindElementById("ID61B1").SendKeys Range("N" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Fax:ID32D
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("O" & i).Text <> "" Then
+            driver.FindElementById("ID32D").Clear
+            driver.FindElementById("ID32D").SendKeys Range("O" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Email:ID27
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("P" & i).Text <> "" Then
+            driver.FindElementById("ID27").Clear
+            driver.FindElementById("ID27").SendKeys Range("P" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Delivery Method:ID23e.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'                    Dim Country2 As Selenium.SelectElement
+'                   Set Country2 = driver.FindElementById("ID22").AsSelect
+'                   Country2.SelectByText Range("K" & i).Value
+'                   driver.Wait 500
+
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'click on update button
+driver.FindElementByXPath("//button[@class='update']").Click
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+driver.Wait 2000
+Exit For
+End If
+driver.Wait 50
+            End If
+                row_count = row_count + 1
+Next
+driver.Wait 2000
+End If
+'3
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+'===================='===================='===================='===================='====================
+' Standard| Standard| Standard| Standard| Standard| Standard| Standard| Standard| Standard| Standard| Standard| Standard|
+'===================='===================='===================='===================='====================
+If Sheets("SignOn").OLEObjects("CBO_Standard_Address").Object.Value = True Then
+Sheets("RawData").Activate
+                    Dim tbl_3 As WebElement
+                    Dim row_3 As WebElement
+                    Dim icon_3 As WebElement
+                    Dim refftype_3 As WebElement
+                    Dim reffvalue_3 As WebElement
+                    Dim txtvalue_3 As String
+                    row_count = 0
+                    Set tbl_3 = driver.FindElementById("table_wrapper")
+                    For Each row_3 In tbl_3.FindElementsByTag("tr")
+                            If row_3.FindElementsByTag("td").count > 1 Then
+                                Set icon_3 = row_3.FindElementsByTag("td")(1)
+                                'Set refftype = row.FindElementsByTag("td")(1)
+                                Set reffvalue_3 = row_3.FindElementsByTag("td")(3)
+                                If (Trim(reffvalue_3.Text)) = "Standard" Then
+                                    icon_3.Click
+                                ' - Click on Edit Button
+                                    driver.FindElementByLinkText("Edit").Click
+                                    driver.Wait 1000
+
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Effective Date: ID - ID23c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("B" & i).Text <> "" Then
+            driver.FindElementById("ID23c").Clear
+            driver.FindElementById("ID23c").SendKeys Range("B" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Contact Name: ID20
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("C" & i).Text <> "" Then
+            driver.FindElementById("ID20").Clear
+            driver.FindElementById("ID20").SendKeys Range("C" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 1:ID9a
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("D" & i).Text <> "" Then
+            driver.FindElementById("ID9a").Clear
+            driver.FindElementById("ID9a").SendKeys Range("D" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 2:ID9b
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("E" & i).Text <> "" Then
+            driver.FindElementById("ID9b").Clear
+            driver.FindElementById("ID9b").SendKeys Range("E" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 3:ID9c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("F" & i).Text <> "" Then
+            driver.FindElementById("ID9c").Clear
+            driver.FindElementById("ID9c").SendKeys Range("F" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 4:ID9d
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("G" & i).Text <> "" Then
+            driver.FindElementById("ID9d").Clear
+            driver.FindElementById("ID9d").SendKeys Range("G" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 5:ID9e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("H" & i).Text <> "" Then
+            driver.FindElementById("ID9e").Clear
+            driver.FindElementById("ID9e").SendKeys Range("H" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Post Code:ID47A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("I" & i).Text <> "" Then
+            driver.FindElementById("ID47A").Clear
+            driver.FindElementById("ID47A").SendKeys Range("I" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''City:ID18aab
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("J" & i).Text <> "" Then
+            driver.FindElementById("ID18aab").Clear
+            driver.FindElementById("ID18aab").SendKeys Range("J" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Country:ID22.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+                    If Range("L" & i).Text <> "" Then
+                   Dim Country3 As Selenium.SelectElement
+                   Set Country3 = driver.FindElementById("ID22").AsSelect
+                   Country3.SelectByText Range("L" & i).Value
+                   driver.Wait 500
+                   End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''State:ID58A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("M" & i).Text <> "" Then
+            driver.FindElementById("ID58A").Clear
+            driver.FindElementById("ID58A").SendKeys Range("M" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Telephone:ID61B1
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("N" & i).Text <> "" Then
+            driver.FindElementById("ID61B1").Clear
+            driver.FindElementById("ID61B1").SendKeys Range("N" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Fax:ID32D
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("O" & i).Text <> "" Then
+            driver.FindElementById("ID32D").Clear
+            driver.FindElementById("ID32D").SendKeys Range("O" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Email:ID27
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+             If Range("P" & i).Text <> "" Then
+            driver.FindElementById("ID27").Clear
+            driver.FindElementById("ID27").SendKeys Range("P" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Delivery Method:ID23e.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'                   Dim Country3 As Selenium.SelectElement
+'                   Set Country3 = driver.FindElementById("ID22").AsSelect
+'                   Country3.SelectByText Range("P" & i).Value
+'                   driver.Wait 500
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'click on update button
+driver.FindElementByXPath("//button[@class='update']").Click
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+Exit For
+End If
+driver.Wait 50
+            End If
+                row_count = row_count + 1
+Next
+
+driver.Wait 2000
+End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'4
+'//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+'===================='===================='===================='===================='====================
+' Statement| Statement| Statement| ' Statement| Statement| Statement| ' Statement| Statement| Statement| ' Statement| Statement| Statement|
+'===================='===================='===================='===================='====================
+If Sheets("SignOn").OLEObjects("CBO_Statement_Address").Object.Value = True Then
+Sheets("RawData").Activate
+
+                        Dim tbl_4 As WebElement
+                        Dim row_4 As WebElement
+                        Dim icon_4 As WebElement
+                        Dim refftype_4 As WebElement
+                        Dim reffvalue_4 As WebElement
+                        Dim txtvalue_4 As String
+                        row_count = 0
+                        Set tbl_4 = driver.FindElementById("table_wrapper")
+                        For Each row_4 In tbl_4.FindElementsByTag("tr")
+                                If row_4.FindElementsByTag("td").count > 1 Then
+                                    Set icon_4 = row_4.FindElementsByTag("td")(1)
+                                    'Set refftype = row.FindElementsByTag("td")(1)
+                                    Set reffvalue_4 = row_4.FindElementsByTag("td")(3)
+                                    If (Trim(reffvalue_4.Text)) = "Statement" Then
+                                        icon_4.Click
+                                    ' - Click on Edit Button
+                                        driver.FindElementByLinkText("Edit").Click
+                                        driver.Wait 1000
+
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'Statement
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Effective Date: ID - ID23c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("B" & i).Text <> "" Then
+            driver.FindElementById("ID23c").Clear
+            driver.FindElementById("ID23c").SendKeys Range("B" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Contact Name: ID20
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("C" & i).Text <> "" Then
+            driver.FindElementById("ID20").Clear
+            driver.FindElementById("ID20").SendKeys Range("C" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 1:ID9a
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("D" & i).Text <> "" Then
+            driver.FindElementById("ID9a").Clear
+            driver.FindElementById("ID9a").SendKeys Range("D" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 2:ID9b
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("E" & i).Text <> "" Then
+            driver.FindElementById("ID9b").Clear
+            driver.FindElementById("ID9b").SendKeys Range("E" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 3:ID9c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("F" & i).Text <> "" Then
+            driver.FindElementById("ID9c").Clear
+            driver.FindElementById("ID9c").SendKeys Range("F" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 4:ID9d
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("G" & i).Text <> "" Then
+            driver.FindElementById("ID9d").Clear
+            driver.FindElementById("ID9d").SendKeys Range("G" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 5:ID9e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("H" & i).Text <> "" Then
+            driver.FindElementById("ID9e").Clear
+            driver.FindElementById("ID9e").SendKeys Range("H" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Post Code:ID47A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("I" & i).Text <> "" Then
+            driver.FindElementById("ID47A").Clear
+            driver.FindElementById("ID47A").SendKeys Range("I" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''City:ID18aab
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("J" & i).Text <> "" Then
+            driver.FindElementById("ID18aab").Clear
+            driver.FindElementById("ID18aab").SendKeys Range("J" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Country:ID22.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+                   If Range("L" & i).Text <> "" Then
+                   Dim Country4 As Selenium.SelectElement
+                   Set Country4 = driver.FindElementById("ID22").AsSelect
+                   Country4.SelectByText Range("L" & i).Value
+                   driver.Wait 500
+                   End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''State:ID58A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("M" & i).Text <> "" Then
+            driver.FindElementById("ID58A").Clear
+            driver.FindElementById("ID58A").SendKeys Range("M" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Telephone:ID61B1
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("N" & i).Text <> "" Then
+            driver.FindElementById("ID61B1").Clear
+            driver.FindElementById("ID61B1").SendKeys Range("N" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Fax:ID32D
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("O" & i).Text <> "" Then
+            driver.FindElementById("ID32D").Clear
+            driver.FindElementById("ID32D").SendKeys Range("O" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Email:ID27
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("O" & i).Text <> "" Then
+            driver.FindElementById("ID27").Clear
+            driver.FindElementById("ID27").SendKeys Range("O" & i)
+            End If
+''---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'''Delivery Method:ID23e.........DropDown
+''---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'If Sheets("RawData").Range("BI2").Text = "Y" Then
+'            driver.FindElementById("ID23e").Clear
+'            driver.FindElementById("ID23e").SendKeys Range("P" & i)
+'            Range("BI" & i).Interior.Color = RGB(226, 239, 218)
+'Else
+'End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'click on update button
+driver.FindElementByXPath("//button[@class='update']").Click
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+Exit For
+End If
+driver.Wait 50
+            End If
+                row_count = row_count + 1
+Next
+driver.Wait 2000
+End If
+'-----------------------------------------------------------'----------------------------------------------------------------------------------------------------------------------'-----------------------------------------------------------
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+'====================Coding End=============================================================================
+driver.Wait 1000
+ActiveWorkbook.Save
+driver.Wait 2000
+
+'========================================================================================================
+'========================================================================================================
+'CBO_Details_Tab
+If Sheets("SignOn").OLEObjects("CBO_Details_Tab").Object.Value = True Then
+Sheets("RawData").Activate
+
+'===================== Click on Detail Tab===============================================================
+driver.Timeouts.ImplicitWait = 3000
+driver.FindElementByLinkText("Detail").Click
+driver.Wait 6000
+'=======================================================================================================
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Contact Reference: name - 21AA
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("C" & i).Text <> "" Then
+            driver.FindElementByName("21AA").Clear
+            driver.FindElementByName("21AA").SendKeys Range("C" & i)
+            End If
+
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Street: name - 40e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("K" & i).Text <> "" Then
+            driver.FindElementByName("40e").Clear
+            driver.FindElementByName("40e").SendKeys Range("K" & i)
+            End If
+
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''City: name - 40e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("J" & i).Text <> "" Then
+            driver.FindElementByName("40e").Clear
+            driver.FindElementByName("40e").SendKeys Range("J" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Zip: name - 78AA
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("I" & i).Text <> "" Then
+            driver.FindElementByName("78AA").Clear
+            driver.FindElementByName("78AA").SendKeys Range("I" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Telephone: name - 61bb12
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("N" & i).Text <> "" Then
+            driver.FindElementByName("61bb12").Clear
+            driver.FindElementByName("61bb12").SendKeys Range("N" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Service Tel No: name - 50z
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("Q" & i).Text <> "" Then
+            driver.FindElementByName("50z").Clear
+            driver.FindElementByName("50z").SendKeys Range("Q" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'Click on Save Button
+driver.FindElementByXPath("//button[@class='save']").Click
+driver.Wait 2000
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+End If
+
+'========================================================================================================
+'========================================================================================================
+'Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes
+'========================================================================================================
+                      Sheets("RawData").Activate
+                      'Update  Merchant Notes
+                      driver.FindElementByLinkText("Customer Service").Click
+                      driver.Wait 100
+                      driver.FindElementByLinkText("Merchant Notes").Click
+                      driver.Wait 100
+'-----------------------------------------------------------------------------------------------------------------------------------
+                       'Click on Add Note
+                      driver.FindElementByXPath("//*[@id='add']").Click
+                      driver.Wait 1000
+'-----------------------------------------------------------------------------------------------------------------------------------
+                   'Change Category -- name - 42j6
+                   Dim Category As Selenium.SelectElement
+                   Set Category = driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[6]/td[2]/select").AsSelect
+                   Category.SelectByText Range("R" & i).Value
+                   driver.Wait 500
+'-----------------------------------------------------------------------------------------------------------------------------------
+                      'Add Note Text
+                      driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[7]/td[2]/textarea").SendKeys Range("S" & i)
+                      driver.Wait 1000
+ '-----------------------------------------------------------------------------------------------------------------------------------
+                      'Click on Add Button
+                      driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[2]/fieldset[2]/table/tbody/tr[8]/td[2]/input[6]").Click
+                      driver.Wait 100
+'-----------------------------------------------------------------------------------------------------------------------------------
+'========================================================================================================
+Range("T" & i).Value = "Record updated successfully"
+'-----------------------------------------------------------'-----------------------------------------------------------
+'========================================================='=========================================================
+continue:
+            ActiveWorkbook.Save
+'========================================================='=========================================================
+Next i
+'========================================================='=========================================================
+done:
+   MsgBox "Completed Successfully", vbInformation
+    Exit Sub
+'========================================================='=========================================================
+Run_Next_Record:
+    Range("H" & i).Value = "Error - Record not updated"
+    driver.Wait 2000
+'========================================================='=========================================================
+    GoTo continue 'return to the code to continue running next record
+'========================================================='=========================================================
+        ActiveWorkbook.Save
+'========================================================='=========================================================
+        MsgBox "Completed Successfully", vbInformation
+driver.Quit
+'========================================================='=========================================================
+End Sub
+
+
+Private Sub ClickPrivilegeIfAvailable(driver As Selenium.EdgeDriver, id As String)
+    If driver.FindElementById(id).Value > 0 Then
+        driver.FindElementById(id).Click
+    End If
+End Sub
+
+
 
