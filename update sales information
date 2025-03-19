@@ -1,0 +1,93 @@
+Private Keys As New Selenium.Keys
+Private Assert As New Selenium.Assert
+Sub Update_Sales_Information_Automation()
+On Error Resume Next
+'Dim driver As New Selenium.EdgeDriver
+Dim driver As New Selenium.ChromeDriver
+Dim count As Long
+Dim fs As String
+Dim button As WebElement
+
+Sheets("SignOn").Activate
+       
+        'Set driver = CreateObject("Selenium.EdgeDriver")
+        Set driver = CreateObject("Selenium.ChromeDriver")
+        driver.Get "https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP"
+"
+        driver.Window.Maximize
+
+'Enter User Name
+        driver.FindElementByXPath("//*[@id='username']").Clear
+        driver.FindElementByXPath("//*[@id='username']").SendKeys Range("B8")
+'Enter Password
+        driver.FindElementByXPath("//*[@id='password']").Clear
+        driver.FindElementByXPath("//*[@id='password']").SendKeys Range("B12")
+'Click on Login Button
+        driver.FindElementByXPath("//*[@id='signOnButton']").Click
+        ' allow to load the results page
+'========================================================='=========================================================
+  MsgBox "Please do PingID multi-factor authentication then 2) Change Institution and Click on Data Access Privileges then click ok button", vbInformation, "PingID-Authentication"
+   driver.Wait 9000
+'========================================================='=========================================================
+'Your Code will start from here
+'========================================================='=========================================================
+
+Sheets("RawData").Activate
+lr = ThisWorkbook.ActiveSheet.Cells(Rows.count, 1).End(xlUp).Row
+For i = 2 To lr
+           
+'01 -  Click on
+            driver.FindElementByLinkText("Merchant Administration").Click
+            'driver.FindElementByXPath("//span[normalize-space()='Merchant Administration']").Click
+            driver.Wait 100
+            
+            driver.FindElementByLinkText("Merchant Maintenance").Click
+            'driver.FindElementByXPath("//a[@class='yuimenuitemlabel yuimenuitemlabel-hassubmenu yuimenuitemlabel-selected yuimenuitemlabel-hassubmenu-selected']").Click
+            
+            driver.FindElementByLinkText("Maintain Merchant Details").Click
+            'driver.FindElementByXPath("//a[@class='yuimenuitemlabel yuimenuitemlabel-selected']").Click
+            
+            driver.Wait 2000
+            
+'02 -   Click on Select Merchant Number
+            'driver.FindElementByXPath("//*[@id='merchbutton-button']").Click
+            driver.FindElementByXPath("//button[@id='merchbutton-button']").Click
+
+'03 -   Enter Merchant Number - //*[@id="id_40A"]
+            'driver.FindElementByXPath("//*[@id='id_40A']").Clear
+            driver.FindElementByXPath("//input[@id='id_40A']").Clear
+            'driver.FindElementByXPath("//*[@id='id_40A']").SendKeys Range("A" & i)
+            driver.FindElementByXPath("//input[@id='id_40A']").SendKeys Range("A" & i)
+
+'04 -   Click on Change Button - //*[@id="changeMerchBtn"]
+            'driver.FindElementByXPath("//*[@id='changeMerchBtn']").Click
+            driver.FindElementByXPath("//button[@id='changeMerchBtn']").Click
+
+driver.Wait 2000
+
+'05 -   Click on Accounts Tab - /html/body/div[6]/div[2]/form/div/div[2]/ul/li[3]/a/span
+            driver.FindElementByXPath("//span[normalize-space()='Sales Information']").Click
+            driver.Wait 3000
+'===============================================================================================
+'01 ----Business Owner '----Element ---- name-----15aaabsn-----B
+driver.FindElementByName("15aaabsn").SendKeys Range("B" & i)
+'02 ----Sales Agent Code '----Element ---- name-----50asn-----B
+driver.FindElementByName("50asn").SendKeys Range("B" & i)
+'03 ----Sales Lead '----Element ---- name-----50aab-----C
+driver.FindElementByName("50aab").Clear
+driver.Wait 100
+driver.FindElementByName("50aab").SendKeys Range("C" & i)
+'===============================================================================================
+'click Save Button
+driver.FindElementById("upd").Click
+driver.Wait 500
+'msgbox
+If driver.FindElementById("idtopmessage").Text = "Item updated" Then
+Range("D" & i) = "Record Updated"
+End If
+driver.Wait 1000
+Next i
+
+MsgBox "Finish"
+
+End Sub
