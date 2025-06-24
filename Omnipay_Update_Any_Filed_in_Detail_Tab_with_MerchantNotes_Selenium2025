@@ -1,0 +1,203 @@
+Sub Omnipay_Update_AnyFieldin_Detail_Tab_with_Notes_Start()
+    On Error GoTo Run_Next_Record
+
+    Dim driver As New Selenium.ChromeDriver
+    Dim wsSignOn As Worksheet
+    Set wsSignOn = Sheets("SignOn")
+
+    Dim wsRaw As Worksheet
+    Set wsRaw = Sheets("RawData")
+
+    Dim i As Long, lr As Long
+
+    driver.Start "Chrome", "https://www.google.com"
+    
+    '-------------------------------------
+    ' Login section
+    If wsSignOn.Range("D4").Value = "https://www2.omnipaygroup.com/ramtool" Then
+        driver.Get wsSignOn.Range("D4").Value
+        driver.FindElementByXPath("//*[@id='69']").SendKeys wsSignOn.Range("B8").Value
+        driver.FindElementByXPath("//*[@id='76']").SendKeys wsSignOn.Range("B12").Value
+        driver.FindElementByXPath("//input[@value='Login']").Click
+    Else
+        driver.Get wsSignOn.Range("D4").Value
+        driver.FindElementByXPath("//*[@id='username']").Clear
+        driver.FindElementByXPath("//*[@id='username']").SendKeys wsSignOn.Range("B8").Value
+        driver.FindElementByXPath("//*[@id='password']").Clear
+        driver.FindElementByXPath("//*[@id='password']").SendKeys wsSignOn.Range("B12").Value
+        driver.FindElementByXPath("//*[@id='signOnButton']").Click
+    End If
+    driver.Wait 2000
+    driver.Window.Maximize
+
+    MsgBox "Complete PingID authentication, then press OK to proceed.", vbInformation, "MFA Required"
+
+    ' Institution select
+    driver.FindElementByXPath("//*[@id='selectinst']").Click
+    If wsSignOn.Range("Q1").Text = "00000029 - Merchant Solutions" Then
+        driver.FindElementByLinkText("00000029 - Merchant Solutions").Click
+    Else
+        driver.FindElementByLinkText("00000066 - Robinsons Bank").Click
+    End If
+    driver.Wait 1000
+
+    ' Privilege settings
+    driver.FindElementByXPath("/html/body/div[1]/div[3]/div[3]/a[2]").Click
+    Dim privs As Variant
+    privs = Array( _
+        "field-view-card-number", "field-download-card-number", "field-view-bank-account", _
+        "field-update-bank-account", "field-view-merchant-pii", "field-update-merchant-pii", _
+        "field-view-sens-doc-pci", "field-view-sens-doc-pii" _
+    )
+    Dim p
+    For Each p In privs
+        ClickPrivilegeIfAvailable driver, CStr(p)
+    Next p
+    driver.FindElementByXPath("/html/body/div[2]/div[1]/div[3]/span/span[1]/span/button").Click
+    driver.Wait 3000
+
+    ' Begin merchant loop
+    Sheets("RawData").Activate
+    lr = wsRaw.Cells(wsRaw.Rows.count, 1).End(xlUp).Row
+
+    For i = 3 To lr
+        driver.FindElementByXPath("//*[@id='merchbutton-button']").Click
+        driver.FindElementByXPath("//*[@id='id_40A']").Clear
+        driver.FindElementByXPath("//*[@id='id_40A']").SendKeys wsRaw.Range("A" & i).Value
+        driver.FindElementByXPath("//*[@id='changeMerchBtn']").Click
+        driver.Wait 1000
+
+        driver.FindElementByLinkText("Merchant Administration").Click
+        driver.Wait 200
+        driver.FindElementByLinkText("Merchant Maintenance").Click
+        driver.Wait 300
+        driver.FindElementByCss("a[href*='MERCH_MAINTAIN_DETAILS']").Click
+        driver.Wait 5000
+
+
+        
+        Call FillAllSmartFields(driver, i)
+    
+
+'========================================================================================================
+'Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes
+'========================================================================================================
+    If Sheets("RawData").Range("BI1").Text = "Y" And Sheets("RawData").Range("BJ1").Text = "Y" Then
+                      'Update  Merchant Notes
+                      driver.FindElementByLinkText("Customer Service").Click
+                      driver.Wait 100
+                      driver.FindElementByLinkText("Merchant Notes").Click
+                      driver.Wait 100
+'-----------------------------------------------------------------------------------------------------------------------------------
+                       'Click on Add Note
+                      driver.FindElementByXPath("//*[@id='add']").Click
+                      driver.Wait 1000
+'-----------------------------------------------------------------------------------------------------------------------------------
+                   'Change Category -- name - 42j6
+                    Dim Change_Category  As Selenium.SelectElement
+                    Set Change_Category = driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[2]/fieldset[2]/table/tbody/tr[6]/td[2]/select").AsSelect
+                    Change_Category.SelectByText Range("BI" & i).Value
+                    driver.Wait 1000
+'-----------------------------------------------------------------------------------------------------------------------------------
+                      'Add Note Text
+                      driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[7]/td[2]/textarea").SendKeys Range("BJ" & i)
+                      driver.Wait 1000
+ '-----------------------------------------------------------------------------------------------------------------------------------
+                      'Click on Save Button
+                      driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[2]/fieldset[2]/table/tbody/tr[8]/td[2]/input[6]").Click
+                      driver.Wait 100
+            Else
+
+End If
+driver.Wait 50
+    Next i
+
+    driver.Quit
+    Exit Sub
+
+Run_Next_Record:
+    LogError i, Err.Description
+    Resume Next
+End Sub
+
+Sub FillAllSmartFields(driver As Object, rowIndex As Long)
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets("RawData")
+
+    Dim fields As Variant
+    fields = Array( _
+        Array("64A", "B"), Array("19", "C"), Array("41mln", "D"), Array("45BDBD", "E"), _
+        Array("48BBB2", "F"), Array("78", "G"), Array("78bb", "H"), Array("36e", "I"), _
+        Array("78ccc", "J"), Array("15AA", "K"), Array("49a3r", "L"), Array("8a", "M"), _
+        Array("21AA", "N"), Array("13A", "O"), Array("58FSCRD", "P"), Array("58FSCRS", "Q"), _
+        Array("37aa", "R"), Array("48BBa", "S"), Array("23j", "T"), Array("40e", "U"), _
+        Array("18aab", "V"), Array("78AA", "W"), Array("22xxx", "X"), Array("stateInput", "Y"), _
+        Array("49a3m", "Z"), Array("61bb12", "AA"), Array("32D", "AB"), Array("50z", "AC"), _
+        Array("50za", "AD"), Array("36dd", "AE"), Array("49aa854b", "AF"), Array("50abff", "AG"), _
+        Array("36f9", "AH"), Array("48ABB1", "AK"), Array("47Aa", "AL"), Array("15aAAAB", "AM"), _
+        Array("22d", "AN"), Array("37ip1", "AO"), Array("37ip2", "AP"), Array("78ip1", "AQ"), _
+        Array("78ip2", "AR"), Array("202abe", "AS"), Array("37bl_lvp", "AT"), Array("682b", "AU"), _
+        Array("682c", "AV"), Array("682d", "AW"), Array("682f", "AX"), Array("682k", "AY"), _
+        Array("682e", "AZ"), Array("78csv", "BA"), Array("682j", "BB"), Array("78cpf", "BC"), _
+        Array("78cpoi", "BD"), Array("78abc", "BE"), Array("78cba", "BF"), Array("78mco", "BG"), _
+        Array("78vmvi", "BH") _
+    )
+
+    Dim i As Long
+    For i = LBound(fields) To UBound(fields)
+        SmartFillField driver, ws, fields(i), rowIndex
+    Next i
+End Sub
+
+'----------------- Optional Error Logger -----------------
+Sub LogError(rowNum As Long, errMsg As String)
+    With Sheets("Log")
+        .Cells(.Rows.count, 1).End(xlUp).Offset(1, 0).Value = rowNum
+        .Cells(.Rows.count, 2).End(xlUp).Offset(1, 0).Value = errMsg
+    End With
+End Sub
+
+Sub ClickPrivilegeIfAvailable(driver As Object, privilegeId As String)
+    On Error Resume Next
+    Dim elem As Object
+    Set elem = driver.FindElementById(privilegeId, timeout:=1000, Raise:=False)
+    If Not elem Is Nothing Then
+        elem.Click
+    Else
+        Debug.Print "Privilege element not found: " & privilegeId
+    End If
+End Sub
+
+'----------------- Fill individual fields -----------------
+Sub SmartFillField(driver As Object, ws As Worksheet, fieldInfo As Variant, rowIndex As Long)
+    Dim fieldName As String, colLetter As String
+    fieldName = fieldInfo(0)
+    colLetter = fieldInfo(1)
+
+    On Error Resume Next
+    If ws.Range(colLetter & "1").Text = "Y" Then
+        Dim elem As Object
+        Set elem = driver.FindElementByName(fieldName, timeout:=2000, Raise:=False)
+        If Not elem Is Nothing Then
+            elem.Clear
+            elem.SendKeys ws.Range(colLetter & rowIndex).Text
+            ws.Range(colLetter & rowIndex).Interior.Color = RGB(226, 239, 218)
+        Else
+            Debug.Print "Field not found: " & fieldName
+         '   GoTo Merchant_Application_Details
+        End If
+    End If
+    driver.Wait 50
+End Sub
+
+
+'
+''----------------- Optional Error Logger -----------------
+'Sub LogError(rowNum As Long, errMsg As String)
+'    With Sheets("Log")
+'        .Cells(.Rows.count, 1).End(xlUp).Offset(1, 0).Value = rowNum
+'        .Cells(.Rows.count, 2).End(xlUp).Offset(1, 0).Value = errMsg
+'    End With
+'End Sub
+
+
