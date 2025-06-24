@@ -1,0 +1,332 @@
+Private Keys As New Selenium.Keys
+Private Assert As New Selenium.Assert
+
+Sub Omnipay_Update_All_Address_N_Notes_Start()
+    On Error GoTo ErrorHandler
+
+    Dim driver As New Selenium.ChromeDriver
+    Dim i As Long, lr As Long
+    Dim institution As String
+
+    Sheets("SignOn").Activate
+    Set driver = New Selenium.ChromeDriver
+
+    driver.Get "https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP"
+    driver.FindElementByXPath("//*[@id='username']").SendKeys Sheets("SignOn").Range("B8").Value
+    driver.FindElementByXPath("//*[@id='password']").SendKeys Sheets("SignOn").Range("B12").Value
+    driver.FindElementByXPath("//*[@id='signOnButton']").Click
+    driver.Wait 2000
+    driver.Window.Maximize
+
+    MsgBox "Please complete PingID authentication, then click OK to continue.", vbInformation, "PingID Authentication"
+    driver.Wait 5000
+
+    driver.FindElementByXPath("//*[@id='selectinst']").Click
+    driver.Wait 500
+
+    institution = Sheets("SignOn").Range("B15").Text
+    If institution = "00000029 - Merchant Solutions" Then
+        driver.FindElementByLinkText("00000029 - Merchant Solutions").Click
+    Else
+        driver.FindElementByLinkText("00000066 - Robinsons Bank").Click
+    End If
+    driver.Wait 1000
+
+    driver.FindElementByXPath("/html/body/div[1]/div[3]/div[3]/a[2]").Click
+
+    ClickPrivilegeIfAvailable driver, "field-view-card-number"
+    ClickPrivilegeIfAvailable driver, "field-download-card-number"
+    ClickPrivilegeIfAvailable driver, "field-view-bank-account"
+    ClickPrivilegeIfAvailable driver, "field-update-bank-account"
+    ClickPrivilegeIfAvailable driver, "field-view-merchant-pii"
+    ClickPrivilegeIfAvailable driver, "field-update-merchant-pii"
+    ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pci"
+    ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pii"
+
+    driver.FindElementByXPath("/html/body/div[2]/div[1]/div[3]/span/span[1]/span/button").Click
+    driver.Wait 3000
+
+    Sheets("RawData").Activate
+    lr = Cells(Rows.count, 1).End(xlUp).Row
+
+    For i = 2 To lr
+        driver.FindElementByXPath("//*[@id='merchbutton-button']").Click
+        driver.FindElementByXPath("//*[@id='id_40A']").Clear
+        driver.FindElementByXPath("//*[@id='id_40A']").SendKeys Range("A" & i).Value
+        driver.FindElementByXPath("//*[@id='changeMerchBtn']").Click
+        driver.Wait 1000
+
+        driver.FindElementByLinkText("Merchant Administration").Click
+        driver.Wait 200
+        driver.FindElementByLinkText("Merchant Maintenance").Click
+        driver.Wait 300
+        driver.FindElementByCss("a[href*='MERCH_MAINTAIN_DETAILS']").Click
+        driver.Wait 1000
+        driver.FindElementByLinkText("Addresses").Click
+        driver.Wait 6000
+
+        ' === Dispute Address Update ===
+        If Sheets("SignOn").OLEObjects("CBO_Dispute_Address").Object.Value = True Then
+            Dim tbl_1 As WebElement, row_1 As WebElement
+            Dim icon_1 As WebElement, reffvalue_1 As WebElement
+            Set tbl_1 = driver.FindElementById("table_wrapper")
+            For Each row_1 In tbl_1.FindElementsByTag("tr")
+                If row_1.FindElementsByTag("td").count > 1 Then
+                    Set icon_1 = row_1.FindElementsByTag("td")(1)
+                    Set reffvalue_1 = row_1.FindElementsByTag("td")(3)
+                    If Trim(reffvalue_1.Text) = "Dispute Address" Then
+                        icon_1.Click
+                         ' - Click on Edit Button
+                        driver.FindElementByLinkText("Edit").Click
+                        driver.Wait 1000
+                        UpdateAddressFields driver, i
+                        Exit For
+                    End If
+                End If
+            Next
+            driver.Wait 2000
+        End If
+
+        ' === Legal Address Update ===
+        If Sheets("SignOn").OLEObjects("CBO_Legal_Address").Object.Value = True Then
+            Dim tbl_2 As WebElement, row_2 As WebElement
+            Dim icon_2 As WebElement, reffvalue_2 As WebElement
+            Set tbl_2 = driver.FindElementById("table_wrapper")
+            For Each row_2 In tbl_2.FindElementsByTag("tr")
+                If row_2.FindElementsByTag("td").count > 1 Then
+                    Set icon_2 = row_2.FindElementsByTag("td")(1)
+                    Set reffvalue_2 = row_2.FindElementsByTag("td")(3)
+                    If Trim(reffvalue_2.Text) = "Legal" Then
+                        icon_2.Click
+                         ' - Click on Edit Button
+                        driver.FindElementByLinkText("Edit").Click
+                        driver.Wait 1000
+                        UpdateAddressFields driver, i
+                        Exit For
+                    End If
+                End If
+            Next
+            driver.Wait 2000
+        End If
+
+
+        ' === Standard Address Update ===
+        If Sheets("SignOn").OLEObjects("CBO_Standard_Address").Object.Value = True Then
+        Sheets("RawData").Activate
+                            Dim tbl_3 As WebElement
+                            Dim row_3 As WebElement
+                            Dim icon_3 As WebElement
+                            Dim refftype_3 As WebElement
+                            Dim reffvalue_3 As WebElement
+                            Dim txtvalue_3 As String
+                            row_count = 0
+                            Set tbl_3 = driver.FindElementById("table_wrapper")
+                            For Each row_3 In tbl_3.FindElementsByTag("tr")
+                                    If row_3.FindElementsByTag("td").count > 1 Then
+                                        Set icon_3 = row_3.FindElementsByTag("td")(1)
+                                        Set reffvalue_3 = row_3.FindElementsByTag("td")(3)
+                                        If (Trim(reffvalue_3.Text)) = "Standard" Then
+                                            icon_3.Click
+                                        ' - Click on Edit Button
+                                            driver.FindElementByLinkText("Edit").Click
+                                            driver.Wait 1000
+                                UpdateAddressFields driver, i
+                        Exit For
+                    End If
+                End If
+            Next
+            driver.Wait 2000
+        End If
+
+
+        ' === Statement Address Update ===
+If Sheets("SignOn").OLEObjects("CBO_Statement_Address").Object.Value = True Then
+Sheets("RawData").Activate
+                        Dim tbl_4 As WebElement
+                        Dim row_4 As WebElement
+                        Dim icon_4 As WebElement
+                        Dim refftype_4 As WebElement
+                        Dim reffvalue_4 As WebElement
+                        Dim txtvalue_4 As String
+                        row_count = 0
+                        Set tbl_4 = driver.FindElementById("table_wrapper")
+                        For Each row_4 In tbl_4.FindElementsByTag("tr")
+                                If row_4.FindElementsByTag("td").count > 1 Then
+                                    Set icon_4 = row_4.FindElementsByTag("td")(1)
+                                    Set reffvalue_4 = row_4.FindElementsByTag("td")(3)
+                                    If (Trim(reffvalue_4.Text)) = "Statement" Then
+                                        icon_4.Click
+                                    ' - Click on Edit Button
+                                        driver.FindElementByLinkText("Edit").Click
+                                        driver.Wait 1000
+                                    UpdateAddressFields driver, i
+                        Exit For
+                    End If
+                End If
+            Next
+            driver.Wait 2000
+        End If
+'========================================================================================================
+'Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes Merchant Notes
+'========================================================================================================
+                      Sheets("RawData").Activate
+                      'Update  Merchant Notes
+                      driver.FindElementByLinkText("Customer Service").Click
+                      driver.Wait 100
+                      driver.FindElementByLinkText("Merchant Notes").Click
+                      driver.Wait 100
+'-----------------------------------------------------------------------------------------------------------------------------------
+                       'Click on Add Note
+                      driver.FindElementByXPath("//*[@id='add']").Click
+                      driver.Wait 1000
+'-----------------------------------------------------------------------------------------------------------------------------------
+                   'Change Category -- name - 42j6
+                   Dim Category As Selenium.SelectElement
+                   Set Category = driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[6]/td[2]/select").AsSelect
+                   Category.SelectByText Sheets("RawData").Range("Q" & i).Value
+                   driver.Wait 500
+'-----------------------------------------------------------------------------------------------------------------------------------
+                      'Add Note Text
+                      driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[7]/td[2]/textarea").SendKeys Sheets("RawData").Range("R" & i)
+                      driver.Wait 1000
+ '-----------------------------------------------------------------------------------------------------------------------------------
+                      'Click on Add Button
+                      driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[2]/fieldset[2]/table/tbody/tr[8]/td[2]/input[6]").Click
+                      driver.Wait 100
+'========================================================================================================
+Range("S" & i).Value = "Record updated successfully"
+'========================================================================================================
+ActiveWorkbook.Save
+driver.Wait 3000
+'========================================================================================================
+'' Next Record
+
+Next i
+    
+    MsgBox "Automation completed successfully!", vbInformation
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "An error occurred: " & Err.Description, vbCritical
+End Sub
+
+' === Helper: Click privilege if available ===
+Sub ClickPrivilegeIfAvailable(driver As Selenium.ChromeDriver, elementId As String)
+    On Error Resume Next
+    Dim element As WebElement
+    Set element = driver.FindElementById(elementId)
+    If Not element Is Nothing Then
+        If Not element.Selected Then element.Click
+    End If
+    On Error GoTo 0
+End Sub
+
+' === Helper: Update address fields ===
+Sub UpdateAddressFields(driver As Selenium.ChromeDriver, i As Long)
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Effective Date: ID - ID23c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("B" & i).Text <> "" Then
+            driver.FindElementById("ID23c").Clear
+            driver.FindElementById("ID23c").SendKeys Range("B" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Contact Name: ID20
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("C" & i).Text <> "" Then
+            driver.FindElementById("ID20").Clear
+            driver.FindElementById("ID20").SendKeys Range("C" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 1:ID9a
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("D" & i).Text <> "" Then
+            driver.FindElementById("ID9a").Clear
+            driver.FindElementById("ID9a").SendKeys Range("D" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 2:ID9b
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("E" & i).Text <> "" Then
+            driver.FindElementById("ID9b").Clear
+            driver.FindElementById("ID9b").SendKeys Range("E" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 3:ID9c
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("F" & i).Text <> "" Then
+            driver.FindElementById("ID9c").Clear
+            driver.FindElementById("ID9c").SendKeys Range("F" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 4:ID9d
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("G" & i).Text <> "" Then
+            driver.FindElementById("ID9d").Clear
+            driver.FindElementById("ID9d").SendKeys Range("G" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Address Line 5:ID9e
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("H" & i).Text <> "" Then
+            driver.FindElementById("ID9e").Clear
+            driver.FindElementById("ID9e").SendKeys Range("H" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Post Code:ID47A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("I" & i).Text <> "" Then
+            driver.FindElementById("ID47A").Clear
+            driver.FindElementById("ID47A").SendKeys Range("I" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''City:ID18aab
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("J" & i).Text <> "" Then
+            driver.FindElementById("ID18aab").Clear
+            driver.FindElementById("ID18aab").SendKeys Range("J" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Country:ID22.........DropDown
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+                   If Range("K" & i).Text <> "" Then
+                   Dim Country4 As Selenium.SelectElement
+                   Set Country4 = driver.FindElementById("ID22").AsSelect
+                   Country4.SelectByText Range("L" & i).Value
+                   driver.Wait 500
+                   End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''State:ID58A
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("L" & i).Text <> "" Then
+            driver.FindElementById("ID58A").Clear
+            driver.FindElementById("ID58A").SendKeys Range("M" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Telephone:ID61B1
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("M" & i).Text <> "" Then
+            driver.FindElementById("ID61B1").Clear
+            driver.FindElementById("ID61B1").SendKeys Range("N" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Fax:ID32D
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("N" & i).Text <> "" Then
+            driver.FindElementById("ID32D").Clear
+            driver.FindElementById("ID32D").SendKeys Range("O" & i)
+            End If
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+''Email:ID27
+'---------------------------------------------------------------------------------------------------------------------------------------------------------------
+            If Range("O" & i).Text <> "" Then
+            driver.FindElementById("ID27").Clear
+            driver.FindElementById("ID27").SendKeys Range("O" & i)
+            End If
+''---------------------------------------------------------------------------------------------------------------------------------------------------------------
+'click on update button
+    driver.FindElementByXPath("//button[@class='update']").Click
+    driver.Wait 2000
+End Sub
+
+
