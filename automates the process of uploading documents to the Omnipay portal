@@ -1,0 +1,194 @@
+Absolutely! Here's your VBA macro with **inline comments** added for clarity, followed by a **detailed explanation** of what the code does.
+
+---
+
+### ✅ **Commented VBA Code**
+
+```vb
+Sub Omnipay_Doc_upload_Start()
+    On Error GoTo SuryaError  ' Error handler
+
+    ' Initialize Selenium ChromeDriver
+    Dim driver As New Selenium.ChromeDriver
+    Dim i As Long, lr As Long
+    Dim file_path As String, CaseNo As String, fullPath As String
+    Dim CF_doc As WebElement
+    Dim doc As Selenium.SelectElement, pdf As Selenium.SelectElement
+    Dim jpg As Selenium.SelectElement, txt As Selenium.SelectElement
+    Dim ext As String, fileNameOnly As String
+    Dim docAttached As Boolean
+    Dim fileFound As String, uploadCount As Long
+
+    ' Activate login sheet and open login URL
+    Sheets("SignOn").Activate
+    driver.Get "https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP"
+    driver.Window.Maximize
+
+    ' Login using credentials from Excel sheet
+    With driver
+        .FindElementByXPath("//*[@id='username']").Clear
+        .FindElementByXPath("//*[@id='username']").SendKeys Range("B8")
+        .FindElementByXPath("//*[@id='password']").Clear
+        .FindElementByXPath("//*[@id='password']").SendKeys Range("B12")
+        .FindElementByXPath("//*[@id='signOnButton']").Click
+    End With
+
+    ' Wait for user to complete PingID authentication
+    MsgBox "Please complete PingID authentication, then click OK to continue.", vbInformation, "PingID Authentication"
+    Application.Wait Now + TimeValue("00:00:05")
+
+    ' Activate data sheet containing case numbers and comments
+    Sheets("RawData").Activate
+    lr = Cells(Rows.Count, 1).End(xlUp).Row  ' Find last row with data
+
+    ' Loop through each case
+    For i = 2 To lr
+        CaseNo = Left(Trim(Range("A" & i).Text), 14)  ' Extract case number
+        file_path = "C:\Users\f4i65kw\Downloads\Doc_Attach_Omnipay\Attachments\"
+        docAttached = False
+        uploadCount = 0
+
+        ' Navigate to case list and search for case
+        With driver
+            .FindElementByXPath("//a[@href = '#Chargebacks']").Click
+            .FindElementByLinkText("Case List").Click
+            Application.Wait Now + TimeValue("00:00:02")
+
+            .FindElementById("ID18e").Clear
+            .FindElementById("ID18e").SendKeys CaseNo
+            Application.Wait Now + TimeValue("00:00:05")
+
+            .FindElementByXPath("//button[@id='search']").Click
+            Application.Wait Now + TimeValue("00:00:05")
+
+            ' Click on the first matching record
+            Dim tbl2 As WebElement, row2 As WebElement, reffvalue2 As WebElement
+            Set tbl2 = driver.FindElementByXPath("//*[@id='chargebacktable_wrapper']")
+            For Each row2 In tbl2.FindElementsByTag("tr")
+                If row2.FindElementsByTag("td").Count > 0 Then
+                    Set reffvalue2 = row2.FindElementsByTag("td")(2)
+                    If Trim(reffvalue2.Text) <> "" Then
+                        reffvalue2.Click
+                        Application.Wait Now + TimeValue("00:00:01")
+                        Exit For
+                    End If
+                End If
+            Next
+            Application.Wait Now + TimeValue("00:00:03")
+
+            ' Add comment to case
+            .FindElementById("tab5").Click
+            .FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[9]/table/tbody/tr[1]/td[2]/font/textarea").SendKeys Range("B" & i)
+            .FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[9]/table/tbody/tr[1]/td[2]/input").Click
+            Application.Wait Now + TimeValue("00:00:02")
+
+            ' Go to document upload tab and select "N/A" document type
+            .FindElementById("tab6").Click
+            .FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[1]/td[2]/select").AsSelect.SelectByText ("N/A")
+        End With
+
+        ' Loop through all matching files for the case
+        fileFound = Dir(file_path & CaseNo & "*.*")
+        Do While fileFound <> ""
+            fullPath = file_path & fileFound
+            fileNameOnly = fileFound
+            ext = LCase(Right(fileNameOnly, Len(fileNameOnly) - InStrRev(fileNameOnly, ".")))  ' Get file extension
+
+            ' Upload logic based on file type
+            Set CF_doc = driver.FindElementByXPath("//input[@type='file']")
+            Select Case ext
+                Case "doc"
+                    driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[1]/td[2]/select").AsSelect.SelectByText ("N/A")
+                    Set doc = driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[3]/td[2]/select").AsSelect
+                    doc.SelectByValue ("001")
+                Case "pdf"
+                    driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[1]/td[2]/select").AsSelect.SelectByText ("N/A")
+                    Set pdf = driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[3]/td[2]/select").AsSelect
+                    pdf.SelectByValue ("002")
+                Case "jpg"
+                    driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[1]/td[2]/select").AsSelect.SelectByText ("N/A")
+                    Set jpg = driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[3]/td[2]/select").AsSelect
+                    jpg.SelectByValue ("005")
+                Case "txt"
+                    driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[1]/td[2]/select").AsSelect.SelectByText ("N/A")
+                    Set txt = driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[10]/table/tbody/tr[3]/td[2]/select").AsSelect
+                    txt.SelectByValue ("003")
+                Case Else
+                    fileFound = Dir
+                    GoTo SkipFile
+            End Select
+
+            ' Upload the file
+            driver.Wait 1000
+            CF_doc.SendKeys fullPath
+            driver.FindElementById("fileUpl").Click
+            driver.Wait 2000
+            docAttached = True
+            uploadCount = uploadCount + 1
+
+SkipFile:
+            fileFound = Dir
+        Loop
+
+        ' Update Excel sheet with upload status
+        If docAttached Then
+            Range("C" & i).Value = uploadCount & " file(s)"
+            Range("D" & i).Value = "Record updated"
+            Range("E" & i).Value = "." & ext
+        Else
+            Range("D" & i).Value = "No matching file found"
+            Range("A" & i).EntireRow.Interior.Color = RGB(255, 0, 0)  ' Highlight row in red
+        End If
+    Next i
+
+    ' Save workbook and close browser
+    ActiveWorkbook.Save
+    MsgBox "Completed Successfully", vbInformation
+    driver.Quit
+    Exit Sub
+
+' Error handler
+SuryaError:
+    MsgBox "Contact Surya. Error in code: " & Err.Description, vbCritical
+    driver.Quit
+End Sub
+```
+
+---
+
+### 🧠 **Code Explanation**
+
+This macro automates the process of uploading documents to the Omnipay portal using Selenium and Excel data.
+
+#### 🔐 **Login Phase**
+- Opens the login page using Selenium.
+- Inputs username and password from the "SignOn" sheet.
+- Waits for user to complete PingID authentication.
+
+#### 📄 **Data Processing Loop**
+- Activates "RawData" sheet and loops through each row.
+- Extracts case number and comment.
+- Navigates to the case list in the portal.
+- Searches for the case and opens the record.
+
+#### 💬 **Comment Entry**
+- Switches to the comment tab and enters the comment from column B.
+
+#### 📎 **Document Upload**
+- Switches to the document tab.
+- Searches for matching files in the local folder.
+- Based on file extension (`doc`, `pdf`, `jpg`, `txt`), selects appropriate document type.
+- Uploads each file and tracks the count.
+
+#### 📊 **Excel Update**
+- Updates columns C, D, and E with upload status.
+- Highlights row in red if no file was found.
+
+#### ✅ **Finalization**
+- Saves the workbook.
+- Displays completion message.
+- Quits the browser.
+
+---
+
+Would you like me to help modular
