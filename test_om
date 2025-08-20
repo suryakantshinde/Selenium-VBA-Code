@@ -1,0 +1,606 @@
+Private keys As New Selenium.keys
+Private Assert As New Selenium.Assert
+Sub Download_All_Excel_Files_Start()
+'On Error GoTo Run_Next_Record
+'==================================================================================================
+'Dim driver As New Selenium.EdgeDriver
+Dim driver As New Selenium.ChromeDriver
+'==================================================================================================
+Dim count As Long
+Dim fs As String
+Dim button As WebElement
+Dim i, lr As Long
+Dim folderPath As String
+Dim filename As String
+Dim latestDate As Date
+Dim latestFile As Object
+Dim file As Object
+Dim fileExt As String
+Dim newFileName As String
+Dim FSO As Object
+''''''''''''''''''''''''
+    Dim selectElement As Selenium.WebElement
+    Dim optionElements As Selenium.WebElements
+    Dim optionItem As Selenium.WebElement
+    Dim op As Long
+    Dim case_number As String
+'==================================================================================================
+Sheets("INSTRUCTIONS").Activate
+        'Set driver = CreateObject("Selenium.EdgeDriver")
+        Set driver = CreateObject("Selenium.chromeDriver")
+        driver.Get "https://eu-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0001709_OMNIPAY-EMEA_IDP"
+        driver.Window.Maximize
+'========================================================='=========================================================
+'Enter User Name
+        driver.FindElementByXPath("//*[@id='username']").Clear
+        driver.FindElementByXPath("//*[@id='username']").SendKeys Range("D4")
+'Enter Password
+        driver.FindElementByXPath("//*[@id='password']").Clear
+        driver.FindElementByXPath("//*[@id='password']").SendKeys Range("D5")
+'Click on Login Button
+'========================================================='=========================================================
+    driver.FindElementByXPath("//*[@id='signOnButton']").Click
+    'driver.FindElementByXPath("//input[@value='Login']").Click
+'========================================================='=========================================================
+    MsgBox "Please do PingID multi-factor authentication then click on OK button to continue running automation", vbInformation, "PingID-Authentication"
+    driver.Wait 2000
+'========================================================='=========================================================
+'Select Institution If Needed
+'========================================================='=========================================================
+    driver.FindElementById("selectinst", "10000").Click
+    driver.FindElementByLinkText("00000076 - ADCB").Click
+    driver.Wait 5000
+'========================================================='=========================================================
+'check and click various privilege options
+driver.FindElementByXPath("//*[@id='twofactor']").Click
+'========================================================='=========================================================
+    'View Card Number
+    ClickPrivilegeIfAvailable driver, "field-view-card-number"
+    'Download Card Number
+   ClickPrivilegeIfAvailable driver, "field-download-card-number"
+    'View Bank Account
+    ClickPrivilegeIfAvailable driver, "field-view-bank-account"
+    'Update Bank Account
+    ClickPrivilegeIfAvailable driver, "field-update-bank-account"
+    'View Merchant PII Data
+    ClickPrivilegeIfAvailable driver, "field-view-merchant-pii"
+    'Update Merchant PII Data
+    ClickPrivilegeIfAvailable driver, "field-update-merchant-pii"
+    'View Sensitive Document/Report - PCI
+    ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pci"
+    'View Sensitive Document/Report - PII
+    ClickPrivilegeIfAvailable driver, "field-view-sens-doc-pii"
+'========================================================='=========================================================
+'Click button Update Privileges
+'========================================================='=========================================================
+    driver.FindElementByXPath("/html/body/div[2]/div[1]/div[3]/span/span[1]/span/button", 10000).Click
+    driver.Wait 1000
+'========================================================='=========================================================
+    ''01 - Chargebacks > CASE LIST
+    ''Report Selection  = Actions Created Detail
+    ''Status = Open
+    ''Download File name = OMCBK_CASE_LIST.xls
+    ''Rename File name = "01_OMCBK_CASE_LIST.xls
+'----------------------------------------------------------------------------------------------------------------------------------------
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Chargebacks").Click
+    driver.Wait 100
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Case List").Click
+    driver.Wait 5000
+'Click on Search
+    driver.FindElementByXPath("//*[@id='search']").Click
+    driver.Wait 9000
+'Click on Download
+    driver.FindElementByXPath("//*[@id='download']").Click
+    driver.Wait 1000
+'Click on Excel
+    driver.FindElementByXPath("//a[@id='IdGws1']").Click
+    driver.Wait 9000
+
+'----------------------------------------------------------------------------------------------------------------
+' Get folder path from cell D6
+folderPath = Sheets("INSTRUCTIONS").Range("D6").Value
+If Right(folderPath, 1) <> "\" Then folderPath = folderPath & "\"
+
+' Create FileSystemObject
+Set FSO = CreateObject("Scripting.FileSystemObject")
+
+' Check if folder exists
+If Not FSO.FolderExists(folderPath) Then
+    MsgBox "Download folder not found: " & folderPath, vbCritical
+    Exit Sub
+End If
+
+' Get new filename from cell H5
+filename = Sheets("INSTRUCTIONS").Range("H5").Value
+
+' Initialize date and file reference
+latestDate = #1/1/1900#
+Set latestFile = Nothing
+
+' Loop through files in folder
+For Each file In FSO.GetFolder(folderPath).Files
+    fileExt = LCase(FSO.GetExtensionName(file.Name))
+    If fileExt = "xls" Then
+        If file.DateLastModified > latestDate Then
+            Set latestFile = file
+            latestDate = file.DateLastModified
+        End If
+    End If
+Next file
+
+' Rename the latest .xls file
+If Not latestFile Is Nothing Then
+    newFileName = folderPath & filename
+    If Not FSO.FileExists(newFileName) Then
+        Name latestFile.Path As newFileName
+    End If
+    Sheets("INSTRUCTIONS").Range("I5").Value = "File Downloaded"
+Else
+    Sheets("INSTRUCTIONS").Range("I5").Value = "No File Found"
+End If
+driver.Wait 4000
+'-------------------------------------------------------
+MoveLatestDocFile
+driver.Wait 3000
+'-----------------------------------------------------
+'========================================================='=========================================================
+'========================================================='=========================================================
+    ''02 - Chargebacks > Exception Monitoring
+    ''Report Selection  = Actions Created Detail
+    ''Card Network = All
+    ''Action = Pre-Arb Received
+    ''Download File name = OMCBK_EXCEPTION_MONITORING.xls
+    ''Rename as "02_OMCBK_EXCEPTION_MONITORING.xls
+'----------------------------------------------------------------------------------------------------------------------------------------
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Chargebacks").Click
+    driver.Wait 100
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Exception Monitoring").Click
+    driver.Wait 5000
+'Report Selection selection option as = "Actions Created Detail"
+    Dim EM_Attachment_Category As Selenium.selectElement
+    Set EM_Attachment_Category = driver.FindElementByXPath("//*[@id='_31ah']").AsSelect
+    EM_Attachment_Category.SelectByText ("Actions Created Detail")
+    driver.Wait 500
+'Card Network = All
+    Dim EM_CardNetwork As Selenium.selectElement
+    Set EM_CardNetwork = driver.FindElementByXPath("//*[@id='ex2h']/tbody/tr[2]/td[2]/select").AsSelect
+    EM_CardNetwork.SelectByText ("All")
+    driver.Wait 500
+'Action = Pre-Arb Received
+    Dim EM_Actions As Selenium.selectElement
+    Set EM_Actions = driver.FindElementByXPath("//*[@id='caseaction']").AsSelect
+    EM_Actions.SelectByText ("Pre-Arb Received")
+    driver.Wait 500
+'Enter Start Date: End Date: Manually
+    MsgBox "Please Enter Start Date: End Date:  then click on OK button to continue running automation", vbInformation
+    driver.Wait 3000
+'Click on Search
+    driver.FindElementByXPath("//*[@id='search']").Click
+    driver.Wait 9000
+'Click on Download
+    driver.FindElementByXPath("//*[@id='download']").Click
+    driver.Wait 1000
+'Click on Excel
+    driver.FindElementByXPath("//a[@id='IdGws1']").Click
+    driver.Wait 9900
+
+'----------------------------------------------------------------------------------------------------------------
+' Get new filename from cell H6
+filename = Sheets("INSTRUCTIONS").Range("H6").Value
+
+' Initialize date and file reference
+latestDate = #1/1/1900#
+Set latestFile = Nothing
+
+' Loop through files in folder
+For Each file In FSO.GetFolder(folderPath).Files
+    fileExt = LCase(FSO.GetExtensionName(file.Name))
+    If fileExt = "xls" Then
+        If file.DateLastModified > latestDate Then
+            Set latestFile = file
+            latestDate = file.DateLastModified
+        End If
+    End If
+Next file
+
+' Rename the latest .xls file
+If Not latestFile Is Nothing Then
+    'newFileName = folderPath & filename & "." & FSO.GetExtensionName(latestFile.Name)
+    newFileName = folderPath & filename
+    If Not FSO.FileExists(newFileName) Then
+        Name latestFile.Path As newFileName
+    End If
+    Sheets("INSTRUCTIONS").Range("I6").Value = "File Downloaded"
+Else
+    Sheets("INSTRUCTIONS").Range("I6").Value = "No File Found"
+End If
+driver.Wait 4000
+'-------------------------------------------------------
+MoveLatestDocFile
+driver.Wait 3000
+'-----------------------------------------------------
+'========================================================='=========================================================
+'========================================================='=========================================================
+    ''03 - Chargebacks > Exception Monitoring
+    ''Report Selection  = Created Case Documentation
+    ''Card Network = All
+    ''Action = All
+    ''Download File name = OMCBK_EXCEPTION_MONITORING.xls
+    ''Rename as "03_Created_Case_Documentation.xls
+'----------------------------------------------------------------------------------------------------------------------------------------
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Chargebacks").Click
+    driver.Wait 100
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Exception Monitoring").Click
+    driver.Wait 5000
+'Report Selection selection option as = "Created Case Documentation"
+    Dim CCD_Attachment_Category As Selenium.selectElement
+    Set CCD_Attachment_Category = driver.FindElementByXPath("//*[@id='_31ah']").AsSelect
+    CCD_Attachment_Category.SelectByText ("Created Case Documentation")
+    driver.Wait 500
+'Card Network = All
+    Dim CCD_CardNetwork As Selenium.selectElement
+    Set CCD_CardNetwork = driver.FindElementByXPath("//*[@id='ex2h']/tbody/tr[2]/td[2]/select").AsSelect
+    CCD_CardNetwork.SelectByText ("All")
+    driver.Wait 500
+'Action = All
+    Dim CCD_Actions As Selenium.selectElement
+    Set CCD_Actions = driver.FindElementByXPath("//*[@id='caseaction']").AsSelect
+    CCD_Actions.SelectByText ("All")
+    driver.Wait 500
+'Enter Start Date: End Date: Manually
+    MsgBox "Please Enter Start Date: End Date:  then click on OK button to continue running automation", vbInformation
+    driver.Wait 3000
+'Click on Search
+    driver.FindElementByXPath("//*[@id='search']").Click
+    driver.Wait 9000
+'Click on Download
+    driver.FindElementByXPath("//*[@id='download']").Click
+    driver.Wait 1000
+'Click on Excel
+    driver.FindElementByXPath("//a[@id='IdGws1']").Click
+    driver.Wait 9900
+'----------------------------------------------------------------------------------------------------------------
+' Get new filename from cell H7
+filename = Sheets("INSTRUCTIONS").Range("H7").Value
+
+' Initialize date and file reference
+latestDate = #1/1/1900#
+Set latestFile = Nothing
+
+' Loop through files in folder
+For Each file In FSO.GetFolder(folderPath).Files
+    fileExt = LCase(FSO.GetExtensionName(file.Name))
+    If fileExt = "xls" Then
+        If file.DateLastModified > latestDate Then
+            Set latestFile = file
+            latestDate = file.DateLastModified
+        End If
+    End If
+Next file
+
+' Rename the latest .xls file
+If Not latestFile Is Nothing Then
+    'newFileName = folderPath & filename & "." & FSO.GetExtensionName(latestFile.Name)
+    newFileName = folderPath & filename
+    If Not FSO.FileExists(newFileName) Then
+        Name latestFile.Path As newFileName
+    End If
+    Sheets("INSTRUCTIONS").Range("I6").Value = "File Downloaded"
+Else
+    Sheets("INSTRUCTIONS").Range("I6").Value = "No File Found"
+End If
+driver.Wait 4000
+'-------------------------------------------------------
+MoveLatestDocFile
+driver.Wait 3000
+'-----------------------------------------------------
+
+'========================================================='=========================================================
+'========================================================='=========================================================
+    ''04 - Chargebacks > Exception Monitoring
+    ''Report Selection  = Uploaded Case Documentation
+    ''Card Network = All
+    ''Action = All
+    ''Download File name = OMCBK_EXCEPTION_MONITORING.xls
+    ''Rename as "04_Uploaded_Case_Documentation.xls"
+'----------------------------------------------------------------------------------------------------------------------------------------
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Chargebacks").Click
+    driver.Wait 100
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Exception Monitoring").Click
+    driver.Wait 5000
+'Report Selection selection option as = "Created Case Documentation"
+    Dim UCD_Attachment_Category As Selenium.selectElement
+    Set UCD_Attachment_Category = driver.FindElementByXPath("//*[@id='_31ah']").AsSelect
+    UCD_Attachment_Category.SelectByText ("Uploaded Case Documentation")
+    driver.Wait 500
+'Card Network = All
+    Dim UCD_CardNetwork As Selenium.selectElement
+    Set UCD_CardNetwork = driver.FindElementByXPath("//*[@id='ex2h']/tbody/tr[2]/td[2]/select").AsSelect
+    UCD_CardNetwork.SelectByText ("All")
+    driver.Wait 500
+'Action = All
+    Dim UCD_Actions As Selenium.selectElement
+    Set UCD_Actions = driver.FindElementByXPath("//*[@id='caseaction']").AsSelect
+    UCD_Actions.SelectByText ("All")
+    driver.Wait 500
+'Enter Start Date: End Date: Manually
+    MsgBox "Please Enter Start Date: End Date:  then click on OK button to continue running automation", vbInformation
+    driver.Wait 3000
+'Click on Search
+    driver.FindElementByXPath("//*[@id='search']").Click
+    driver.Wait 9000
+'Click on Download
+    driver.FindElementByXPath("//*[@id='download']").Click
+    driver.Wait 1000
+'Click on Excel
+    driver.FindElementByXPath("//a[@id='IdGws1']").Click
+    driver.Wait 9900
+'----------------------------------------------------------------------------------------------------------------
+' Get new filename from cell H8
+filename = Sheets("INSTRUCTIONS").Range("H8").Value
+
+' Initialize date and file reference
+latestDate = #1/1/1900#
+Set latestFile = Nothing
+
+' Loop through files in folder
+For Each file In FSO.GetFolder(folderPath).Files
+    fileExt = LCase(FSO.GetExtensionName(file.Name))
+    If fileExt = "xls" Then
+        If file.DateLastModified > latestDate Then
+            Set latestFile = file
+            latestDate = file.DateLastModified
+        End If
+    End If
+Next file
+
+' Rename the latest .xls file
+If Not latestFile Is Nothing Then
+    'newFileName = folderPath & filename & "." & FSO.GetExtensionName(latestFile.Name)
+    newFileName = folderPath & filename
+    If Not FSO.FileExists(newFileName) Then
+        Name latestFile.Path As newFileName
+    End If
+    Sheets("INSTRUCTIONS").Range("I7").Value = "File Downloaded"
+Else
+    Sheets("INSTRUCTIONS").Range("I7").Value = "No File Found"
+End If
+driver.Wait 4000
+'-------------------------------------------------------
+MoveLatestDocFile
+driver.Wait 3000
+'-----------------------------------------------------
+
+'========================================================='=========================================================
+'========================================================='=========================================================
+    ''05 - Chargebacks > Exception Monitoring
+    ''Report Selection  = Actions Created Detail
+    ''Card Network = All
+    ''Action = Transfer to Merch
+    ''Download File name = OMCBK_EXCEPTION_MONITORING.xls
+    ''Rename as "05_Actions_Created_Detail.xls"
+
+'----------------------------------------------------------------------------------------------------------------------------------------
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Chargebacks").Click
+    driver.Wait 100
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Exception Monitoring").Click
+    driver.Wait 5000
+'Report Selection selection option as = "Created Case Documentation"
+    Dim ACD_Attachment_Category As Selenium.selectElement
+    Set ACD_Attachment_Category = driver.FindElementByXPath("//*[@id='_31ah']").AsSelect
+    ACD_Attachment_Category.SelectByText ("Uploaded Case Documentation")
+    driver.Wait 500
+'Card Network = All
+    Dim ACD_CardNetwork As Selenium.selectElement
+    Set ACD_CardNetwork = driver.FindElementByXPath("//*[@id='ex2h']/tbody/tr[2]/td[2]/select").AsSelect
+    ACD_CardNetwork.SelectByText ("All")
+    driver.Wait 500
+'Action = All
+    Dim ACD_Actions As Selenium.selectElement
+    Set ACD_Actions = driver.FindElementByXPath("//*[@id='caseaction']").AsSelect
+    ACD_Actions.SelectByText ("Transfer to Merch")
+    driver.Wait 500
+'Enter Start Date: End Date: Manually
+    MsgBox "Please Enter Start Date: End Date:  then click on OK button to continue running automation", vbInformation
+    driver.Wait 3000
+'Click on Search
+    driver.FindElementByXPath("//*[@id='search']").Click
+    driver.Wait 9000
+'Click on Download
+    driver.FindElementByXPath("//*[@id='download']").Click
+    driver.Wait 1000
+'Click on Excel
+    driver.FindElementByXPath("//a[@id='IdGws1']").Click
+     driver.Wait 9900
+'----------------------------------------------------------------------------------------------------------------
+' Get new filename from cell H9
+filename = Sheets("INSTRUCTIONS").Range("H9").Value
+
+' Initialize date and file reference
+latestDate = #1/1/1900#
+Set latestFile = Nothing
+
+' Loop through files in folder
+For Each file In FSO.GetFolder(folderPath).Files
+    fileExt = LCase(FSO.GetExtensionName(file.Name))
+    If fileExt = "xls" Then
+        If file.DateLastModified > latestDate Then
+            Set latestFile = file
+            latestDate = file.DateLastModified
+        End If
+    End If
+Next file
+
+' Rename the latest .xls file
+If Not latestFile Is Nothing Then
+    'newFileName = folderPath & filename & "." & FSO.GetExtensionName(latestFile.Name)
+    newFileName = folderPath & filename
+    If Not FSO.FileExists(newFileName) Then
+        Name latestFile.Path As newFileName
+    End If
+    Sheets("INSTRUCTIONS").Range("I8").Value = "File Downloaded"
+Else
+    Sheets("INSTRUCTIONS").Range("I8").Value = "No File Found"
+End If
+driver.Wait 4000
+'-------------------------------------------------------
+MoveLatestDocFile
+driver.Wait 3000
+'-----------------------------------------------------
+
+'========================================================='=========================================================
+'========================================================='=========================================================
+    ''06 - Transaction Handling>Misc Batch List
+    ''Download File name = OMCBK_EXCEPTION_MONITORING.xls
+    ''Rename as "06_Misc_Batch_List.xls"
+'----------------------------------------------------------------------------------------------------------------------------------------
+'clickonMerchant Administration  link    Merchant Administration
+    driver.FindElementByLinkText("Transaction Handling").Click
+    driver.Wait 100
+'clickonMerchant Application Setup   link    Merchant Maintenance
+    driver.FindElementByLinkText("Misc Batch List").Click
+    driver.Wait 5000
+'Enter Start Date: End Date: Manually
+    MsgBox "Please Enter Nominal Posting Date Start and End then, click on OK button to continue running automation", vbInformation
+    driver.Wait 3000
+''Click on Search
+    driver.FindElementByXPath("//*[@id='search']").Click
+    driver.Wait 9000
+'Click on Download
+    driver.FindElementByXPath("//*[@id='inner-download-span']").Click
+    driver.Wait 1000
+'Click on Excel
+    driver.FindElementByXPath("//a[@id='IdGws1']").Click
+     driver.Wait 9900
+'----------------------------------------------------------------------------------------------------------------
+' Get new filename from cell H10
+filename = Sheets("INSTRUCTIONS").Range("H10").Value
+
+' Initialize date and file reference
+latestDate = #1/1/1900#
+Set latestFile = Nothing
+
+' Loop through files in folder
+For Each file In FSO.GetFolder(folderPath).Files
+    fileExt = LCase(FSO.GetExtensionName(file.Name))
+    If fileExt = "xls" Then
+        If file.DateLastModified > latestDate Then
+            Set latestFile = file
+            latestDate = file.DateLastModified
+        End If
+    End If
+Next file
+
+' Rename the latest .xls file
+If Not latestFile Is Nothing Then
+    'newFileName = folderPath & filename & "." & FSO.GetExtensionName(latestFile.Name)
+    newFileName = folderPath & filename
+    If Not FSO.FileExists(newFileName) Then
+        Name latestFile.Path As newFileName
+    End If
+    Sheets("INSTRUCTIONS").Range("I9").Value = "File Downloaded"
+Else
+    Sheets("INSTRUCTIONS").Range("I9").Value = "No File Found"
+End If
+driver.Wait 4000
+'-------------------------------------------------------
+MoveLatestDocFile
+driver.Wait 3000
+'-----------------------------------------------------
+
+'========================================================='=========================================================
+'========================================================='=========================================================
+'========================================================='=========================================================
+'========================================================='=========================================================
+'========================================================='=========================================================
+'========================================================='=========================================================
+
+continue:
+ActiveWorkbook.Save
+'========================================================='=========================================================
+'Next i
+'========================================================='=========================================================
+done:
+MsgBox "Completed Successfully", vbInformation
+    Exit Sub
+'========================================================='=========================================================
+Run_Next_Record:
+    Range("H" & i).Value = "Error Record not updated"
+    driver.Wait 2000
+'========================================================='=========================================================
+    GoTo continue 'return to the code to continue running next record
+'========================================================='=========================================================
+ActiveWorkbook.Save
+'========================================================='=========================================================
+MsgBox "Completed Successfully", vbInformation
+driver.Quit
+'========================================================='=========================================================
+End Sub
+
+Private Sub ClickPrivilegeIfAvailable(driver As Selenium.EdgeDriver, id As String)
+    If driver.FindElementById(id).Value > 0 Then
+        driver.FindElementById(id).Click
+    End If
+End Sub
+
+Sub MoveLatestDocFile_1()
+    Dim FSO As Object
+    Dim sourcePath As String
+    Dim targetPath As String
+    Dim file As Object
+    Dim latestFile As String
+    Dim latestDate As Date
+
+    ' Set your folder paths
+    sourcePath = Sheets("INSTRUCTIONS").Range("D6").Value
+    targetPath = Sheets("INSTRUCTIONS").Range("D7").Value
+
+    ' Ensure paths end with backslash
+    If Right(sourcePath, 1) <> "\" Then sourcePath = sourcePath & "\"
+    If Right(targetPath, 1) <> "\" Then targetPath = targetPath & "\"
+
+    Set FSO = CreateObject("Scripting.FileSystemObject")
+
+    ' Check if source folder exists
+    If Not FSO.FolderExists(sourcePath) Then
+        MsgBox "Source folder not found!", vbCritical
+        Exit Sub
+    End If
+
+    ' Create target folder if it doesn't exist
+    If Not FSO.FolderExists(targetPath) Then
+        FSO.CreateFolder targetPath
+    End If
+
+    ' Find the latest .doc or .docx file
+    latestDate = #1/1/1900#
+    latestFile = ""
+
+    For Each file In FSO.GetFolder(sourcePath).Files
+        If LCase(FSO.GetExtensionName(file.Name)) = "xls" Or LCase(FSO.GetExtensionName(file.Name)) = "xlsx" Then
+            If file.DateLastModified > latestDate Then
+                latestDate = file.DateLastModified
+                latestFile = file.Name
+            End If
+        End If
+    Next file
+
+    ' Move the file if found
+    If latestFile <> "" Then
+        FSO.MoveFile sourcePath & latestFile, targetPath & latestFile
+        ' MsgBox "Moved file: " & latestFile, vbInformation
+    Else
+        MsgBox "No Word document found in source folder.", vbExclamation
+    End If
+End Sub
+
