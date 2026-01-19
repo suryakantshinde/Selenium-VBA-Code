@@ -1,0 +1,617 @@
+
+Option Explicit
+
+' If you need special keys (e.g., Enter, Tab)
+Private ks As New Selenium.keys
+
+Public Sub MID_Status_Change_Start()
+    'On Error GoTo FatalCleanExit   ' <-- Optional global trap (you currently use row-level error handling)
+
+    Dim driver As Selenium.ChromeDriver
+    Dim i As Long, lr As Long
+
+    '============================
+    ' 1) Launch & Single Sign-On
+    '============================
+    Set driver = New Selenium.ChromeDriver
+    driver.Get "https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP"
+
+    ' Fill Username/Password from SignOn sheet
+    With Sheets("SignOn")
+        driver.FindElementByXPath("//*[@id='username']", 15000).Clear
+        driver.FindElementByXPath("//*[@id='username']").SendKeys .Range("B8").Value
+
+        driver.FindElementByXPath("//*[@id='password']").Clear
+        driver.FindElementByXPath("//*[@id='password']").SendKeys .Range("B12").Value
+    End With
+    driver.Window.Maximize
+
+    ' Submit sign in
+    driver.FindElementByXPath("//*[@id='signOnButton']").Click
+
+    ' Wait for user MFA action and resume
+    MsgBox "Please complete PingID multi-factor, then click OK to continue.", vbInformation, "PingID Authentication"
+    driver.Wait 3000
+
+    '=====================================
+    ' 2) Institution selection (if shown)
+    '=====================================
+    On Error Resume Next
+    driver.FindElementById("selectinst", 5000).Click
+    If Err.Number = 0 Then
+        On Error GoTo 0
+        ' Select the intended institution
+        driver.FindElementByLinkText("00000029 - Merchant Solutions").Click
+        driver.Wait 2000
+    Else
+        Err.Clear
+        On Error GoTo 0
+    End If
+
+    '====================================
+    ' 3) Privileges page (if applicable)
+    '====================================
+    On Error Resume Next
+    driver.FindElementByXPath("/html/body/div[1]/div[3]/div[3]/a[2]", 3000).Click
+    On Error GoTo 0
+
+    ' Toggle/select privilege options if these elements exist
+    Call ClickPrivilegeIfAvailable(driver, "field-view-card-number")
+    Call ClickPrivilegeIfAvailable(driver, "field-view-bank-account")
+    Call ClickPrivilegeIfAvailable(driver, "field-update-bank-account")
+    Call ClickPrivilegeIfAvailable(driver, "field-view-merchant-pii")
+    Call ClickPrivilegeIfAvailable(driver, "field-update-merchant-pii")
+    Call ClickPrivilegeIfAvailable(driver, "field-view-sens-doc-pci")
+    Call ClickPrivilegeIfAvailable(driver, "field-view-sens-doc-pii")
+
+    ' Update Privileges (best-effort if the button exists)
+    On Error Resume Next
+    driver.FindElementByXPath("//*[@id='update-priv-btn']", 5000).Click
+    On Error GoTo 0
+
+    '=================================
+    ' 4) Determine last row in RawData
+    '=================================
+    With Sheets("RawData")
+        lr = .cells(.rows.count, 1).End(xlUp).row  ' last row based on column A
+    End With
+
+    '=================================
+    ' 5) Loop rows in RawData (A..H)
+    '=================================
+    For i = 2 To lr
+        On Error GoTo RowError    ' row-level error handling, continue to next row on failure
+
+        '-------------------------------
+        ' 5.1 Navigate to target module
+        '-------------------------------
+        driver.FindElementByLinkText("Merchant Administration", 10000).Click
+        driver.Wait 150
+        driver.FindElementByLinkText("Merchant Maintenance", 10000).Click
+        driver.Wait 150
+        driver.FindElementByLinkText("Maintain Merchant Details", 10000).Click
+
+        '------------------------
+        ' 5.2 Select the merchant
+        '------------------------
+        driver.FindElementByXPath("//*[@id='merchbutton']", 10000).Click
+
+        driver.FindElementByXPath("//input[@id='id_40A']", 10000).Clear
+        driver.FindElementByXPath("//input[@id='id_40A']").SendKeys Sheets("RawData").Range("A" & i).Value
+
+        driver.FindElementByXPath("//button[@id='changeMerchBtn']", 10000).Click
+        driver.Wait 2000
+
+        '===========================
+        ' 5.3 Account Fees (Tab)
+        '===========================
+        driver.FindElementByLinkText("Account Fees", 10000).Click
+        driver.Wait 750
+
+        '---------------------------------------------------------
+        ' Scenario 1:
+        '   - Within the fees table, find a row matching:
+        '       Col 9  (index 8)  = "Terminal Rental Fee"
+        '       Col 11 (index 10) = "Fee is on"
+        '       Col 15 (index 14) > 0  (numeric)
+        '   - Open "Revise Pricing On This Fee"
+        '   - Set Fee base = 0.0000, Fee mode = "Fee is off"
+        '   - Effective date = Sheet RawData!B[i]
+        '   - Click Revise/Update, then return to the prior window
+        '---------------------------------------------------------
+        Dim feeTblWrap As Selenium.WebElement
+        Dim feeRows As Selenium.WebElements
+        Dim feeRow As Selenium.WebElement
+        Dim feeCells As Selenium.WebElements
+        Dim feeFound As Boolean
+        Dim feeFirstCell As Selenium.WebElement
+
+        feeFound = False
+        Set feeTblWrap = Nothing
+
+        On Error Resume Next
+        Set feeTblWrap = driver.FindElementByXPath("//*[@id='table_wrapper']", 5000) ' NOTE: generic id; may appear on multiple pages
+        On Error GoTo 0
+
+        If Not feeTblWrap Is Nothing Then
+            Set feeRows = feeTblWrap.FindElementsByTag("tr")
+            For Each feeRow In feeRows
+                Set feeCells = feeRow.FindElementsByTag("td")
+                ' Need at least 15 tds to read index 14
+                If Not feeCells Is Nothing Then
+                    If feeCells.count >= 15 Then
+                        If Trim$(feeCells(8).Text) = "Terminal Rental Fee" _
+                           And Trim$(feeCells(10).Text) = "Fee is on" _
+                           And Val(Trim$(feeCells(14).Text)) > 0 Then
+
+                            Set feeFirstCell = feeCells(1) ' Usually contains an action icon/menu
+                            feeFound = True
+                            Exit For
+                        End If
+                    End If
+                End If
+            Next feeRow
+        End If
+
+        If feeFound Then
+            ' Click the action icon/menu for that row
+            If Not SafeClickFirstInteractive(feeFirstCell) Then
+                driver.ExecuteScript "arguments[0].click();", feeFirstCell
+                driver.Wait 250
+            End If
+
+            ' Open "Revise Pricing On This Fee" in a (possibly) new window
+            Dim winCountBefore As Long
+            winCountBefore = driver.Windows.count
+
+            driver.FindElementByLinkText("Revise Pricing On This Fee", 10000).Click
+            driver.Wait 400
+
+            ' Switch only if an extra window opened
+            If driver.Windows.count > winCountBefore Then
+                driver.SwitchToNextWindow
+            End If
+
+            ' Set Fee base = 0.0000
+            driver.FindElementByXPath("//*[@id='ID32d3a']", 10000).Clear
+            driver.FindElementByXPath("//*[@id='ID32d3a']").SendKeys "0.0000"
+
+            ' Select Fee mode = "Fee is off"
+            Dim selOff As Selenium.SelectElement
+            Set selOff = driver.FindElementByXPath("//*[@id='ID32d3']", 10000).AsSelect
+            selOff.SelectByText "Fee is off"
+            driver.Wait 250
+
+            ' Effective date from column B
+            driver.FindElementByXPath("//input[@id='ID24c3']", 10000).Clear
+            driver.FindElementByXPath("//input[@id='ID24c3']").SendKeys Sheets("RawData").Range("B" & i).Value
+
+            ' Confirm / Update (class='update')
+            driver.FindElementByXPath("//button[@class='update']", 10000).Click
+            driver.Wait 500
+
+            ' Return if we switched
+            If driver.Windows.count > 1 Then
+                driver.SwitchToPreviousWindow
+                driver.Wait 300
+            End If
+        End If
+
+        '---------------------------------------------------------
+        ' Scenario 2:
+        '   - From the same fees table, find a row where Col 6 (index 5) = "TRF Clover Flex"
+        '   - Open "Override This Default Fee"
+        '   - Fee base = Sheet RawData!C[i]
+        '   - Fee mode = "Fee is on"
+        '   - Effective date = Sheet RawData!D[i]
+        '   - Click Add (class='add')
+        '---------------------------------------------------------
+        Dim feeTblWrap2 As Selenium.WebElement
+        Dim feeRows2 As Selenium.WebElements
+        Dim feeRow2 As Selenium.WebElement
+        Dim feeCells2 As Selenium.WebElements
+        Dim feeFound2 As Boolean
+        Dim feeFirstCell2 As Selenium.WebElement
+
+        feeFound2 = False
+        Set feeTblWrap2 = Nothing
+
+        On Error Resume Next
+        Set feeTblWrap2 = driver.FindElementByXPath("//*[@id='table_wrapper']", 5000)
+        On Error GoTo 0
+
+        If Not feeTblWrap2 Is Nothing Then
+            Set feeRows2 = feeTblWrap2.FindElementsByTag("tr")
+            For Each feeRow2 In feeRows2
+                Set feeCells2 = feeRow2.FindElementsByTag("td")
+                If Not feeCells2 Is Nothing Then
+                    If feeCells2.count >= 6 Then
+                        If Trim$(feeCells2(5).Text) = "TRF Clover Flex" Then
+                            Set feeFirstCell2 = feeCells2(1)
+                            feeFound2 = True
+                            Exit For
+                        End If
+                    End If
+                End If
+            Next feeRow2
+        End If
+
+        If feeFound2 Then
+            If Not SafeClickFirstInteractive(feeFirstCell2) Then
+                driver.ExecuteScript "arguments[0].click();", feeFirstCell2
+                driver.Wait 250
+            End If
+
+            Dim winCount2 As Long
+            winCount2 = driver.Windows.count
+
+            ' Open override popup/window
+            driver.FindElementByLinkText("Override This Default Fee", 10000).Click
+            driver.Wait 400
+
+            If driver.Windows.count > winCount2 Then
+                driver.SwitchToNextWindow
+            End If
+
+            ' Fee base from column C
+            driver.FindElementByXPath("//*[@id='ID32d3a']", 10000).Clear
+            driver.FindElementByXPath("//*[@id='ID32d3a']").SendKeys Sheets("RawData").Range("C" & i).Value
+
+            ' Fee mode = "Fee is on"
+            Dim selOn As Selenium.SelectElement
+            Set selOn = driver.FindElementByXPath("//*[@id='ID32d3']", 10000).AsSelect
+            selOn.SelectByText "Fee is on"
+            driver.Wait 250
+
+            ' Effective date from column D
+            driver.FindElementByXPath("//input[@id='ID24c3']", 10000).Clear
+            driver.FindElementByXPath("//input[@id='ID24c3']").SendKeys Sheets("RawData").Range("D" & i).Value
+
+            ' Confirm Add
+            driver.FindElementByXPath("//button[@class='add']", 10000).Click
+            driver.Wait 500
+
+            If driver.Windows.count > 1 Then
+                driver.SwitchToPreviousWindow
+                driver.Wait 300
+            End If
+        End If
+
+        '---------------------------------------------------------
+        ' Scenario 3 (Terminals tab):
+        '   - Go to Terminals tab
+        '   - Find a row where col 9 (index 9, 0-based) equals "Terminal Rental fee"
+        '   - Click the action icon in col 1 (index 1), Edit, set:
+        '       * Client Fee ID = "N/A"
+        '       * Fee Effective = Sheet RawData!B[i]
+        '     Then Update
+        '---------------------------------------------------------
+        Dim trfTblWrap As Selenium.WebElement
+        Dim trfRows As Selenium.WebElements
+        Dim trfRow As Selenium.WebElement
+        Dim trfCells As Selenium.WebElements
+        Dim trfFound As Boolean
+        Dim iconCell As Selenium.WebElement
+
+        Const TARGET_TEXT As String = "Yearly Terminal Rental fee"
+        Const COL_TEXT_IDX As Long = 9    ' note: requires row to have >= 10 tds
+        Const COL_ICON_IDX As Long = 1
+
+        ' Switch to Terminals tab
+        driver.FindElementByLinkText("Terminals", 10000).Click
+        driver.Wait 1000
+
+        trfFound = False
+        Set trfTblWrap = Nothing
+
+        On Error Resume Next
+        Set trfTblWrap = driver.FindElementByXPath("//*[@id='table_wrapper']", 5000)
+        On Error GoTo 0
+
+        If Not trfTblWrap Is Nothing Then
+            Set trfRows = trfTblWrap.FindElementsByTag("tr")
+            If Not trfRows Is Nothing Then
+                Dim rIdx As Long
+                For rIdx = 1 To trfRows.count - 1      ' skip header row at index 0
+                    Set trfRow = trfRows(rIdx)
+                    Set trfCells = trfRow.FindElementsByTag("td")
+                    If Not trfCells Is Nothing Then
+                        If trfCells.count >= 9 Then
+                            If StrComp(Trim$(trfCells(COL_TEXT_IDX).Text), TARGET_TEXT, vbTextCompare) = 0 Then
+                                trfFound = True
+                                Set iconCell = trfCells(COL_ICON_IDX)
+
+                                ' Click first interactive element; else JS click
+                                If Not SafeClickFirstInteractive(iconCell) Then
+                                    On Error Resume Next
+                                    iconCell.FindElementByTag("button").Click
+                                    If Err.Number <> 0 Then
+                                        Err.Clear
+                                        driver.ExecuteScript "arguments[0].click();", iconCell
+
+                                        ' 1) Click on Edit
+                                        driver.FindElementByLinkText("Edit").Click
+                                        driver.Wait 500
+
+                                        ' 2) Change Client Fee ID to "N/A"   //*[@id='ID18abca']
+                                        Dim TerminalselOff As Selenium.SelectElement
+                                        Set TerminalselOff = driver.FindElementByXPath("//*[@id='ID18abca']", 10000).AsSelect
+                                        TerminalselOff.SelectByText "N/A"
+                                        driver.Wait 250
+
+                                        ' 3) Fee Effective - Date from Sheet RawData!B[i]   //*[@id='ID32D1D']
+                                        driver.FindElementByXPath("//*[@id='ID32D1D']").SendKeys Sheets("RawData").Range("B" & i).Value
+                                        driver.Wait 250
+
+                                        ' 4) Click update  (class="update")
+                                        driver.FindElementByXPath("//button[@class='update']", 10000).Click
+                                        driver.Wait 500
+                                    End If
+                                    On Error GoTo 0
+                                End If
+
+                                Exit For ' break on first match
+                            End If
+                        End If
+                    End If
+                Next rIdx
+            End If
+        End If
+
+        '---------------------------------------------------------
+        ' Scenario 4 (Terminals tab):
+        '   - Again on Terminals grid
+        '   - Find first row where TID (col index 2) starts with "19"
+        '   - Click the row action icon (col index 1), Edit
+        '   - Read Terminal Type dropdown
+        '       * If "CLOVER FLEX": set Client Fee ID = "TRF Clover Flex",
+        '         set Fee Effective = RawData!D[i], Update,
+        '         then add a Merchant Note (Scenario 5)
+        '       * Else: click cancel
+        '---------------------------------------------------------
+        driver.FindElementByLinkText("Terminals", 10000).Click
+        driver.Wait 500
+
+        Dim termTable As Selenium.WebElement
+        Dim termRows As Selenium.WebElements
+        Dim rowCells As Selenium.WebElements
+        Dim tidValue As String
+
+        Const tidColIdx As Long = 2   ' TID column index (0-based)
+        Const iconColIdx As Long = 1  ' action icon column index (0-based)
+
+        Set termTable = Nothing
+        On Error Resume Next
+        Set termTable = driver.FindElementByXPath("//*[@id='table_wrapper']", 5000)
+        On Error GoTo 0
+
+        If Not termTable Is Nothing Then
+            Set termRows = termTable.FindElementsByTag("tr")
+            If Not termRows Is Nothing Then
+                Dim j As Long
+                For j = 1 To termRows.count - 1 ' skip header row
+                    Set rowCells = termRows(j).FindElementsByTag("td")
+                    If Not rowCells Is Nothing Then
+                        If rowCells.count > tidColIdx And rowCells.count > iconColIdx Then
+                            tidValue = Trim$(rowCells(tidColIdx).Text)
+                            If Len(tidValue) >= 2 Then
+                                If Left$(tidValue, 2) = "19" Then
+                                    Debug.Print "Row " & j & " Terminal ID starting with 19 found: " & tidValue
+
+                                    Dim iconCellT As Selenium.WebElement
+                                    Set iconCellT = rowCells(iconColIdx)
+
+                                    If Not SafeClickFirstInteractive(iconCellT) Then
+                                        driver.ExecuteScript "arguments[0].click();", iconCellT
+                                    End If
+
+                                    ' 1 - Click on Edit
+                                    driver.FindElementByLinkText("Edit").Click
+                                    driver.Wait 500
+
+                                    ' 2 - Read current Terminal Type dropdown text  //*[@id='ID62aj81']
+                                    '     Store in RawData!E[i] for reference
+                                    Dim selectedText As String
+                                    Dim el As Selenium.WebElement
+                                    Dim sel As Selenium.SelectElement
+
+                                    Set el = driver.FindElementByXPath("//*[@id='ID62aj81']")
+                                    Set sel = el.AsSelect
+                                    selectedText = sel.SelectedOption.Text
+                                    Sheets("RawData").Range("E" & i).Value = selectedText
+
+                                    driver.Wait 1000
+
+                                    ' 3 - Branch by Terminal Type
+                                    If Sheets("RawData").Range("E" & i).Value = "CLOVER FLEX" Then
+                                        ' 3a - Client Fee ID = "TRF Clover Flex"  //*[@id="ID18abca"]
+                                        Dim TRFCloverFlex As Selenium.SelectElement
+                                        Set TRFCloverFlex = driver.FindElementByXPath("//*[@id='ID18abca']", 10000).AsSelect
+                                        TRFCloverFlex.SelectByText "TRF Clover Flex"
+                                        driver.Wait 1000
+
+                                        ' 3b - Fee Effective = Sheet RawData!D[i]  //*[@id="ID32D1D"]
+                                        driver.FindElementByXPath("//*[@id='ID32D1D']").SendKeys Sheets("RawData").Range("D" & i).Value
+                                        driver.Wait 250
+
+                                        ' 3c - Click update
+                                        driver.FindElementByXPath("//button[@class='update']", 10000).Click
+
+                                        '------------------------------------
+                                        ' Scenario 5: Update Merchant Notes
+                                        '------------------------------------
+                                        Sheets("RawData").Activate
+                                        driver.FindElementByLinkText("Customer Service").Click
+                                        driver.Wait 100
+                                        driver.FindElementByLinkText("Merchant Notes").Click
+                                        driver.Wait 100
+
+                                        ' Click on Add Note
+                                        driver.FindElementByXPath("//*[@id='add']").Click
+                                        driver.Wait 1000
+
+                                        ' Category dropdown (select by visible text from F[i])
+                                        Dim Category As Selenium.SelectElement
+                                        Set Category = driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[6]/td[2]/select").AsSelect
+                                        Category.SelectByText Sheets("RawData").Range("F" & i).Value
+                                        driver.Wait 500
+
+                                        ' Note text from G[i]
+                                        driver.FindElementByXPath("//*[@id='bd']/fieldset[2]/table/tbody/tr[7]/td[2]/textarea").SendKeys Sheets("RawData").Range("G" & i)
+                                        driver.Wait 1000
+
+                                        ' Click Add/Submit for the note
+                                        driver.FindElementByXPath("/html/body/div[2]/div[2]/form/div/div[2]/fieldset[2]/table/tbody/tr[8]/td[2]/input[6]").Click
+                                        driver.Wait 100
+
+                                        ' Mark success in H[i] and save workbook
+                                        Range("H" & i).Value = "Record updated successfully"
+                                        ActiveWorkbook.Save
+
+                                    Else
+                                        ' If NOT Clover Flex: cancel and move on
+                                        driver.FindElementByXPath("//button[@class='cancel']", 10000).Click
+                                    End If
+
+                                    Exit For ' act on the first matching TID row only
+                                End If
+                            End If
+                        End If
+                    End If
+                Next j
+            End If
+        End If
+
+        ' (Future: other actions like more notes/validations can go here)
+
+        '===========================
+        ' Move to next row in input
+        '===========================
+        GoTo NextRow
+
+RowError:
+        ' Log the error but keep processing the next row
+        Debug.Print "Row " & i & " error: " & Err.Number & " - " & Err.Description
+        Err.Clear
+
+NextRow:
+        DoEvents
+        driver.Wait 250
+    Next i
+
+    ActiveWorkbook.Save
+    MsgBox "Completed successfully.", vbInformation
+
+CleanQuit:
+    On Error Resume Next
+    If Not driver Is Nothing Then driver.Quit
+    Set driver = Nothing
+    Exit Sub
+
+FatalCleanExit:
+    Debug.Print "Fatal error: " & Err.Description
+    Resume CleanQuit
+End Sub
+
+'===========================
+' Helpers
+'===========================
+
+' Try to click a likely interactive child element inside a cell.
+' If none of these succeed, return False so caller can JS-click the whole cell.
+Private Function SafeClickFirstInteractive(ByVal hostCell As Selenium.WebElement) As Boolean
+    On Error Resume Next
+
+    hostCell.FindElementByTag("input").Click
+    If Err.Number = 0 Then SafeClickFirstInteractive = True: Err.Clear: Exit Function
+    Err.Clear
+
+    hostCell.FindElementByTag("a").Click
+    If Err.Number = 0 Then SafeClickFirstInteractive = True: Err.Clear: Exit Function
+    Err.Clear
+
+    hostCell.FindElementByTag("i").Click
+    If Err.Number = 0 Then SafeClickFirstInteractive = True: Err.Clear: Exit Function
+    Err.Clear
+
+    hostCell.FindElementByCss("button, .btn, [role='button']").Click
+    If Err.Number = 0 Then SafeClickFirstInteractive = True: Err.Clear: Exit Function
+    Err.Clear
+
+    SafeClickFirstInteractive = False
+End Function
+
+' Best-effort toggle/click for privilege items by ID.
+' - If it's a real checkbox: only click when not already checked
+' - If it's a non-native control: infer state via aria-checked/class, else click safely
+Private Sub ClickPrivilegeIfAvailable(ByRef driver As Selenium.ChromeDriver, ByVal elemId As String)
+    Dim el As Selenium.WebElement
+    On Error Resume Next
+    Set el = driver.FindElementById(elemId, 2000)
+    If Err.Number <> 0 Or el Is Nothing Then
+        Err.Clear
+        Exit Sub
+    End If
+    On Error GoTo 0
+
+    Dim tagName As String, typ As String
+    tagName = LCase$(el.tagName)
+    typ = LCase$(el.Attribute("type"))
+
+    If tagName = "input" And (typ = "checkbox" Or typ = "radio") Then
+        ' ---- Native selectable element ----
+        Dim isChecked As Boolean
+        isChecked = False
+
+        On Error Resume Next
+        ' Prefer attribute over .Selected
+        If LCase$(Trim$(el.Attribute("checked"))) = "true" Or LCase$(Trim$(el.Attribute("checked"))) = "checked" Then
+            isChecked = True
+        Else
+            isChecked = el.Selected
+        End If
+        Err.Clear
+        On Error GoTo 0
+
+        If isChecked = False Then el.Click
+
+    ElseIf tagName = "option" Then
+        ' ---- <option> inside <select> ----
+        Dim optSelected As Boolean
+        On Error Resume Next
+        optSelected = el.Selected
+        On Error GoTo 0
+        If Not optSelected Then el.Click
+
+    Else
+        ' ---- Non-native toggle (div/span/label/button) ----
+        Dim ariaChecked As String
+        Dim className As String
+        ariaChecked = LCase$(Trim$(el.Attribute("aria-checked")))
+        className = " " & LCase$(Trim$(el.Attribute("class"))) & " "
+
+        Dim looksOn As Boolean
+        looksOn = (ariaChecked = "true") _
+                  Or (InStr(className, " active ") > 0) _
+                  Or (InStr(className, " selected ") > 0) _
+                  Or (InStr(className, " checked ") > 0)
+
+        If Not looksOn Then
+            On Error Resume Next
+            el.Click
+            If Err.Number <> 0 Then
+                Err.Clear
+                el.FindElementByCss("input, button, a, [role='button'], i").Click
+                If Err.Number <> 0 Then
+                    Err.Clear
+                    driver.ExecuteScript "arguments[0].click();", el
+                End If
+            End If
+            On Error GoTo 0
+        End If
+    End If
+End Sub
+
+
+
+
