@@ -1,0 +1,215 @@
+"""
+Omnipay Report Downloader - Refactored
+Author: Suryakant Shinde (Updated)
+Date: March 28, 2026
+"""
+
+import os
+import time
+import shutil
+import pandas as pd
+import openpyxl
+from pathlib import Path
+from datetime import datetime
+from openpyxl.cell.cell import MergedCell
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+
+# --- CONFIGURATION ---
+BASE_PATH = Path(__file__).parent
+EXCEL_FILE_PATH = BASE_PATH / "MasterFile.xlsx"
+DOWNLOAD_DIR = BASE_PATH / "report_download"
+DOWNLOAD_DIR.mkdir(exist_ok=True)  # Create local download folder if missing
+
+def move_latest_file(source_dir, target_dir, new_name):
+    """Searches source for most recent excel/csv and moves it to target."""
+    files = [os.path.join(source_dir, f) for f in os.listdir(source_dir) if f.endswith(('.xls', '.xlsx', '.csv'))]
+    if not files:
+        return False
+    latest_file = max(files, key=os.path.getmtime)
+    target_path = Path(target_dir) / new_name
+    os.makedirs(target_dir, exist_ok=True)
+    shutil.move(latest_file, target_path)
+    return True
+
+def save_with_retries(workbook, path: Path, max_retries: int = 5, delay_sec: float = 1.0):
+    """Safely saves Excel even if it's currently open by the user."""
+    for attempt in range(1, max_retries + 1):
+        try:
+            workbook.save(path)
+            return True
+        except PermissionError:
+            print(f"   > Save blocked. Retry {attempt}/{max_retries}...")
+            time.sleep(delay_sec)
+    
+    # Emergency backup if primary save fails
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup = path.with_name(f"{path.stem}_autosave_{ts}{path.suffix}")
+    workbook.save(backup)
+    print(f"   > Saved to backup: {backup.name}")
+    return False
+
+def run_automation():
+    # 1. Load Credentials & Setup
+    try:
+        creds = pd.read_excel(EXCEL_FILE_PATH, sheet_name="userlogin", header=None, engine="openpyxl")
+        user_val = creds.iloc[2, 1]
+        pass_val = creds.iloc[3, 1]
+        target_inst = str(creds.iloc[4, 1]).strip()
+    except Exception as e:
+        print(f"CRITICAL: Could not load MasterFile. Check path or sheet name. Error: {e}")
+        return
+
+    wb = openpyxl.load_workbook(EXCEL_FILE_PATH)
+    ws_data = wb["rawdata"]
+
+    with sync_playwright() as p:
+        # 1. ADDED EXTRA FLAGS to kill the red security popup
+        browser = p.chromium.launch(headless=False, channel="chrome", args=["--start-maximized"])
+        # accept_downloads=True is required to handle file events
+        context = browser.new_context(no_viewport=True, accept_downloads=True)
+        page = context.new_page()
+
+
+        # browser_args = [
+        #     "--start-maximized", 
+        #     "--disable-features=DownloadBubble,DownloadBubbleV2", # Kill both bubble versions
+        #     "--safebrowsing-disable-download-protection",        # Bypass "Unsafe" check
+        #     "--disable-web-security"                              # Allow cross-origin if needed
+        # ]
+        
+        # try:
+        #     browser = p.chromium.launch(headless=False, channel="chrome", args=browser_args)
+        # except Exception:
+        #     browser = p.chromium.launch(headless=False, args=browser_args)
+
+        # # 2. Context MUST have accept_downloads=True
+        # context = browser.new_context(no_viewport=True, accept_downloads=True)
+        # page = context.new_page()
+
+       # --- LOGIN ---
+        page.goto("https://in-ssoca.fiservapp.com/idp/startSSO.ping?PartnerSpId=APM0002648_OMNIPAY-INDIA_IDP")
+        page.locator("#username").fill(str(user_val))
+        page.locator("#password").fill(str(pass_val))
+        page.click("#signOnButton")
+
+        print("Waiting 20s for manual MFA (PingID/OTP)...")
+        page.wait_for_timeout(2000)
+
+        # --- SELECT INSTITUTION ---
+        page.locator("#selectinst").click()
+        try:
+            page.get_by_role("link", name=target_inst, exact=True).click(timeout=5000)
+        except:
+            page.locator(f"a:has-text('{target_inst}')").click()
+        page.wait_for_load_state("networkidle")
+        
+        # --- SELECT Privileges ---
+        page.get_by_title("Data Access Privileges").click()
+        print("Waiting 20s for authentication...")
+        page.wait_for_timeout(10000)
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(100)
+
+        # --- REPORT NAVIGATION: Submissions ---
+        try:
+
+            # 1) Navigate to Reports -> DataCapture -> Submissions
+            # Selenium: drv.FindElementByLinkText("Reports").Click
+            page.get_by_role("link", name="Reports", exact=True).click()
+            page.wait_for_timeout(100)
+            # Selenium: drv.FindElementByLinkText("DataCapture").Click
+            page.get_by_role("link", name="DataCapture", exact=True).click()
+            page.wait_for_timeout(100)
+            # Selenium: drv.FindElementByLinkText("Submissions").Click
+            page.get_by_role("link", name="Submissions", exact=True).click()
+            
+            # Input dates from Excel
+            page.locator("#ID55B").fill(str(ws_data["C2"].value))
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(100)
+            page.locator("#ID28B").fill(str(ws_data["D2"].value))
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(100)
+            
+            # Load the value from your Excel sheet
+            SettlementCurrency_r1 = str(ws_data["E2"].value)
+            page.wait_for_timeout(500)
+            # Select by the visible text (label)
+            page.locator("//*[@id='ex2h']/fieldset/div/div[1]/p[3]/select").select_option(label=SettlementCurrency_r1)
+            # Equivalent to SafeWait 500
+            page.wait_for_timeout(500)
+
+            # Load the value from your Excel sheet
+            BinICA_r1 = str(ws_data["F2"].value)
+            page.wait_for_timeout(500)
+            # Select by the visible text (label)
+            page.locator("//*[@id='ex2h']/fieldset/div/div[2]/p[1]/select").select_option(label=BinICA_r1)
+            # Equivalent to SafeWait 500
+            page.wait_for_timeout(500)
+            
+            #Show Country:
+            page.locator("#ID201abcc").check() 
+            page.wait_for_timeout(500)
+
+            #Click on Search Button
+            page.locator("#search").click()
+            page.wait_for_load_state("networkidle")
+            
+            # --- DOWNLOAD PROCESS ---
+            page.locator("#download").click()
+            page.wait_for_timeout(500)
+            
+            # Handle the popup window correctly
+            with page.expect_popup() as popup_info:
+                page.locator("#IdGws1").click()
+            download_page = popup_info.value
+
+            # Check the disclaimer box using its ID
+            # Click the Acknowledge input using the XPath
+            download_page.locator("xpath=/html/body/form/div/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[1]/input").click()
+            download_page.wait_for_timeout(200)
+
+            # 1. Capture the popup window when it opens
+            # (Assuming the click that opens the window happens here)
+            with download_page.expect_popup() as popup_info:
+                download_page.get_by_role("button", name="Download").click() # Replace with your trigger button
+            download_page = popup_info.value
+            
+            # 2. Acknowledge (Click the first input/submit)
+            download_page.locator("xpath=/html/body/form/div/table/tbody/tr/td/table/tbody/tr[2]/td/table/tbody/tr/td[1]/input").click()
+            download_page.wait_for_timeout(200)
+
+            # 3. Click 'Download as Excel' and handle the actual file download
+             # 3. Click 'Download as Excel' and handle the actual file download
+            with download_page.expect_download() as download_info:
+                download_page.locator("xpath=/html/body/form/div/table/tbody/tr/td/table/tbody/tr[4]/td/table/tbody/tr/td[1]/font/button").click()
+
+            download = download_info.value
+            download_page.wait_for_timeout(40000)
+            
+            # This line WAITS until the download is 100% complete
+            download_path = download.path() 
+            
+            # Define final name with timestamp to avoid overwriting
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_name = f"Submission_{timestamp}.xls"
+            target_file_path = DOWNLOAD_DIR / final_name
+            
+            # Move and Rename
+            shutil.move(download_path, target_file_path)
+            print(f"File fully downloaded and renamed to: {final_name}")
+
+            
+            ws_data["L2"] = "Downloaded Successfully"
+            print(f"Report 01 Complete: {EXCEL_FILE_PATH.name}")
+
+        except Exception as e:
+            ws_data["L2"] = f"Failed: {str(e)}"
+            print(f"Error during report execution: {e}")
+
+        # Final cleanup and save
+        save_with_retries(wb, EXCEL_FILE_PATH)
+        # browser.close()
+
+if __name__ == "__main__":
+    run_automation()
